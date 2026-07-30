@@ -50,6 +50,7 @@ interface Voucher {
 }
 
 export function App() {
+  const travelerUrl = import.meta.env.VITE_TRAVELER_URL || '/app';
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'quests' | 'proposals' | 'vouchers'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -251,6 +252,9 @@ export function App() {
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2d6a4f' }}></div>
             <span>PANGASINAN REGION ACTIVE</span>
           </div>
+          <a href={travelerUrl} style={{ color: '#582f0e', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
+            View traveler site
+          </a>
           <button onClick={handleLogout} style={{ background: 'transparent', color: '#582f0e', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 600 }}>
             <LogOut size={16} /> Logout
           </button>
