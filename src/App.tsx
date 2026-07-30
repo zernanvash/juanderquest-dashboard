@@ -51,7 +51,16 @@ interface Voucher {
 
 export function App() {
   const travelerUrl = import.meta.env.VITE_TRAVELER_URL || '/app';
-  const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
+  const [token, setToken] = useState<string | null>(() => {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const handedOffToken = fragment.get('session');
+    if (handedOffToken) {
+      localStorage.setItem('admin_token', handedOffToken);
+      window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+      return handedOffToken;
+    }
+    return localStorage.getItem('admin_token');
+  });
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'quests' | 'proposals' | 'vouchers'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
