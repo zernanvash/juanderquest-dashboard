@@ -59,6 +59,20 @@ button {
   transition: all 0.2s ease;
 }
 
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.submission-grid, .quest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+}
+.load-error { padding: 12px 14px; margin-bottom: 14px; border-radius: 10px; background: rgba(188,71,73,.12); color: #a33234; font-size: 13px; }
+.load-error button { margin-left: 8px; padding: 6px 10px; border-radius: 7px; color: #a33234; font-weight: 700; }
+.loading-panel { padding: 38px; text-align: center; color: #837560; }
+
 input, textarea, select {
   font-family: var(--font-body);
   outline: none;
@@ -413,6 +427,10 @@ input, textarea, select {
 }
 
 @media (max-width: 520px) {
+  header.stitch-panel { padding: 12px !important; align-items: flex-start !important; gap: 12px; flex-direction: column; }
+  header.stitch-panel > div { flex-wrap: wrap; gap: 10px !important; }
+  header.stitch-panel h2 { font-size: 16px !important; }
+  header.stitch-panel p, header.stitch-panel div > div:first-child + span { display: none; }
   .gov-state-grid, .gov-config-grid { grid-template-columns: 1fr; }
   .gov-insight-strip { grid-template-columns: auto 1fr; }
   .gov-insight-badge { grid-column: 2; justify-self: start; }

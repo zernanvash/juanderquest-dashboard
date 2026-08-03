@@ -137,6 +137,8 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
   const [selected, setSelected] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mutation, setMutation] = useState(false);
+  const [mutationError, setMutationError] = useState('');
   const [ledgerFilter, setLedgerFilter] = useState('');
 
   const request = useCallback(async (path: string, init?: RequestInit) => {
@@ -157,19 +159,19 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
     setLoading(true);
     setError('');
     try {
-      const [nextOverview, nextTokenomics, nextProposals, nextLedger, nextAudit] = await Promise.all([
+      const results = await Promise.allSettled([
         request('/admin/governance/overview'),
         request('/admin/tokenomics/analytics'),
         request('/admin/governance/proposals'),
         request('/admin/tokenomics/ledger'),
         request('/admin/governance/audit'),
       ]);
-      setOverview(nextOverview);
-      setTokenomics(nextTokenomics);
-      setProposals(nextProposals);
-      setLedger(nextLedger);
-      setAudit(nextAudit);
-      if (selected) setSelected(nextProposals.find((proposal: Proposal) => proposal.id === selected.id) || null);
+      const setters = [setOverview, setTokenomics, setProposals, setLedger, setAudit] as Array<(value: any) => void>;
+      results.forEach((result, index) => { if (result.status === 'fulfilled') setters[index](result.value); });
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+      if (failures.length) setError(`${failures.length} governance section${failures.length === 1 ? '' : 's'} failed to load. Retry to restore all data.`);
+      const proposalsResult = results[2];
+      if (selected && proposalsResult.status === 'fulfilled') setSelected(proposalsResult.value.find((proposal: Proposal) => proposal.id === selected.id) || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load governance controls.');
     } finally {
@@ -180,6 +182,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
   useEffect(() => { void refresh(); }, [request]);
 
   const screen = async (proposal: Proposal, decision: 'approve' | 'reject') => {
+    if (mutation) return;
     const reason = window.prompt(decision === 'approve'
       ? 'Screening conclusion (required):'
       : 'Public rejection reason (required):');
@@ -187,41 +190,63 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
     const evidence = window.prompt('Evidence or review reference (required):');
     if (!evidence) return;
     try {
+      setMutation(true); setMutationError('');
       await request(`/admin/governance/proposals/${proposal.id}/screen`, {
         method: 'POST',
         body: JSON.stringify({ decision, reason, evidence_reference: evidence, checklist_complete: decision === 'approve' }),
       });
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Screening action failed.');
-    }
+      setMutationError(err instanceof Error ? err.message : 'Screening action failed.');
+    } finally { setMutation(false); }
   };
 
   const transition = async (proposal: Proposal, action: string, force = false) => {
+    if (mutation) return;
     if (!window.confirm(`Confirm ${action.replace(/_/g, ' ')} for "${proposal.title}"? This action is audited.`)) return;
     try {
+      setMutation(true); setMutationError('');
       await request(`/admin/governance/proposals/${proposal.id}/transition`, {
         method: 'POST', body: JSON.stringify({ action, force }),
       });
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lifecycle action failed.');
-    }
+      setMutationError(err instanceof Error ? err.message : 'Lifecycle action failed.');
+    } finally { setMutation(false); }
+  };
+
+  const resolveDispute = async (proposal: Proposal) => {
+    if (mutation) return;
+    const release = window.prompt('Payout release percentage (0-100):', '100');
+    const bond = window.prompt('Bond action: refund, slash_50, or slash_100', 'refund');
+    const reason = window.prompt('Resolution reason (required):');
+    const evidence = window.prompt('Evidence reference (required):');
+    if (release === null || !['refund', 'slash_50', 'slash_100'].includes(bond || '') || !reason?.trim() || !evidence?.trim()) return;
+    try {
+      setMutation(true); setMutationError('');
+      await request(`/admin/governance/proposals/${proposal.id}/resolve`, {
+        method: 'POST', body: JSON.stringify({ release_percent: Number(release), bond_action: bond, reason: reason.trim(), evidence_reference: evidence.trim() }),
+      });
+      await refresh();
+    } catch (err) {
+      setMutationError(err instanceof Error ? err.message : 'Dispute resolution failed.');
+    } finally { setMutation(false); }
   };
 
   const toggleControl = async (key: keyof Pick<Controls, 'pause_votes' | 'pause_payouts' | 'pause_vouchers' | 'pause_all_financial'>) => {
-    if (!overview) return;
+    if (!overview || mutation) return;
     const nextValue = !overview.controls[key];
     const reason = window.prompt(`Reason for ${nextValue ? 'enabling' : 'clearing'} ${key.replace(/_/g, ' ')}:`);
     if (!reason) return;
     try {
+      setMutation(true); setMutationError('');
       await request('/admin/governance/controls', {
         method: 'PUT', body: JSON.stringify({ [key]: nextValue, reason }),
       });
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Control update failed.');
-    }
+      setMutationError(err instanceof Error ? err.message : 'Control update failed.');
+    } finally { setMutation(false); }
   };
 
   const filteredLedger = useMemo(() => {
@@ -260,6 +285,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
       </div>
 
       {error && <div className="gov-alert critical"><AlertTriangle size={17} /> {error}</div>}
+      {mutationError && <div className="gov-alert critical" role="alert"><AlertTriangle size={17} /> {mutationError}</div>}
 
       <div className="gov-nav">
         {nav.map(([id, Icon, label]) => (
@@ -337,7 +363,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
           </section>
           <aside style={card}>
             {!selected ? <p style={{ color: '#837560' }}>Select a proposal to inspect all governance terms and actions.</p> : (
-              <ProposalInspector proposal={selected} onScreen={screen} onTransition={transition} />
+              <ProposalInspector proposal={selected} onScreen={screen} onTransition={transition} onResolve={resolveDispute} disabled={mutation} />
             )}
           </aside>
         </div>
@@ -438,7 +464,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
             {(['pause_votes', 'pause_payouts', 'pause_vouchers', 'pause_all_financial'] as const).map((key) => (
               <div key={key} className="gov-control-row">
                 <div><strong>{key.replace(/_/g, ' ')}</strong><span>{overview.controls[key] ? 'Paused' : 'Operating'}</span></div>
-                <button className={`gov-button ${overview.controls[key] ? 'success' : 'danger'}`} onClick={() => void toggleControl(key)}>
+                <button disabled={mutation} className={`gov-button ${overview.controls[key] ? 'success' : 'danger'}`} onClick={() => void toggleControl(key)}>
                   {overview.controls[key] ? <PlayCircle size={15} /> : <PauseCircle size={15} />}
                   {overview.controls[key] ? 'Resume' : 'Pause'}
                 </button>
@@ -648,11 +674,13 @@ function LedgerActivityChart({ ledger }: { ledger: LedgerEntry[] }) {
 }
 
 function ProposalInspector({
-  proposal, onScreen, onTransition,
+  proposal, onScreen, onTransition, onResolve, disabled,
 }: {
   proposal: Proposal;
   onScreen: (proposal: Proposal, decision: 'approve' | 'reject') => void;
   onTransition: (proposal: Proposal, action: string, force?: boolean) => void;
+  onResolve: (proposal: Proposal) => void;
+  disabled: boolean;
 }) {
   const turnout = proposal.eligible_voter_snapshot ? proposal.votes / proposal.eligible_voter_snapshot : 0;
   return (
@@ -686,18 +714,19 @@ function ProposalInspector({
       </>}
       <div className="gov-actions">
         {proposal.state === 'screening' && <>
-          <button className="gov-button success" onClick={() => onScreen(proposal, 'approve')}><CheckCircle2 size={15} /> Approve screening</button>
-          <button className="gov-button danger" onClick={() => onScreen(proposal, 'reject')}><XCircle size={15} /> Reject</button>
+          <button disabled={disabled} className="gov-button success" onClick={() => onScreen(proposal, 'approve')}><CheckCircle2 size={15} /> Approve screening</button>
+          <button disabled={disabled} className="gov-button danger" onClick={() => onScreen(proposal, 'reject')}><XCircle size={15} /> Reject</button>
         </>}
-        {proposal.state === 'voting' && <button className="gov-button secondary" onClick={() => onTransition(proposal, 'close_voting', true)}><Clock3 size={15} /> Close vote (prototype)</button>}
-        {proposal.state === 'approved' && <button className="gov-button success" onClick={() => onTransition(proposal, 'schedule')}><Clock3 size={15} /> Schedule quest</button>}
-        {proposal.state === 'scheduled' && <button className="gov-button success" onClick={() => onTransition(proposal, 'activate')}><PlayCircle size={15} /> Activate quest</button>}
-        {proposal.state === 'active' && <button className="gov-button secondary" onClick={() => onTransition(proposal, 'open_feedback')}><Vote size={15} /> Open feedback</button>}
+        {proposal.state === 'voting' && <button disabled={disabled} className="gov-button secondary" onClick={() => onTransition(proposal, 'close_voting', true)}><Clock3 size={15} /> Close vote (prototype)</button>}
+        {proposal.state === 'approved' && <button disabled={disabled} className="gov-button success" onClick={() => onTransition(proposal, 'schedule')}><Clock3 size={15} /> Schedule quest</button>}
+        {proposal.state === 'scheduled' && <button disabled={disabled} className="gov-button success" onClick={() => onTransition(proposal, 'activate')}><PlayCircle size={15} /> Activate quest</button>}
+        {proposal.state === 'active' && <button disabled={disabled} className="gov-button secondary" onClick={() => onTransition(proposal, 'open_feedback')}><Vote size={15} /> Open feedback</button>}
         {proposal.state === 'feedback' && <>
-          <button className="gov-button secondary" onClick={() => onTransition(proposal, 'close_feedback', true)}><Clock3 size={15} /> Close feedback (prototype)</button>
-          <button className="gov-button danger" onClick={() => onTransition(proposal, 'mark_disputed')}><Scale size={15} /> Escalate dispute</button>
+          <button disabled={disabled} className="gov-button secondary" onClick={() => onTransition(proposal, 'close_feedback', true)}><Clock3 size={15} /> Close feedback (prototype)</button>
+          <button disabled={disabled} className="gov-button danger" onClick={() => onTransition(proposal, 'mark_disputed')}><Scale size={15} /> Escalate dispute</button>
         </>}
-        {proposal.state === 'payout_pending' && <button className="gov-button success" onClick={() => onTransition(proposal, 'finalize_payout')}><Coins size={15} /> Release locked payout</button>}
+        {proposal.state === 'disputed' && <button disabled={disabled} className="gov-button success" onClick={() => onResolve(proposal)}><Scale size={15} /> Resolve dispute</button>}
+        {proposal.state === 'payout_pending' && <button disabled={disabled} className="gov-button success" onClick={() => onTransition(proposal, 'finalize_payout')}><Coins size={15} /> Release locked payout</button>}
       </div>
     </div>
   );

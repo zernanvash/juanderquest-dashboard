@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -27,6 +27,8 @@ interface Submission {
   target_lat: number;
   target_lng: number;
   distance_meters: number;
+  quest_radius_meters: number;
+  captured_accuracy?: number;
   status: 'pending' | 'approved' | 'rejected';
   rejection_reason?: string;
   created_at: string;
@@ -39,6 +41,7 @@ interface Quest {
   location_name: string;
   reward_points: number;
   marker_code: string;
+  radius_meters: number;
 }
 
 interface Voucher {
@@ -64,11 +67,17 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'quests' | 'proposals' | 'vouchers'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState('');
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [showRejectModal, setShowRejectModal] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string>('');
+  const rejectInputRef = useRef<HTMLTextAreaElement>(null);
+  const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const vouchers: Voucher[] = [
     { id: 'v1', merchant_name: 'Dagupan Bangus Grill & Restaurant', offer_title: '₱100 Meal Discount Voucher', cost_points: 50, category: 'FOOD & DINING' },
@@ -81,7 +90,7 @@ export function App() {
   // Demo Login
   const handleLogin = async () => {
     try {
-      setLoading(true);
+      setAuthLoading(true);
       setLoginError('');
       const res = await fetch(`${API_BASE}/auth/demo-login`, {
         method: 'POST',
@@ -98,7 +107,7 @@ export function App() {
     } catch (err) {
       setLoginError('Network error - cannot reach server');
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
 
@@ -108,54 +117,84 @@ export function App() {
   };
 
   // Fetch Submissions
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = async (signal?: AbortSignal) => {
     if (!token) return;
     try {
-      setLoading(true);
+      setListLoading(true);
+      setListError('');
       const statusQuery = activeTab === 'pending' ? '?status=pending' : '';
       const res = await fetch(`${API_BASE}/admin/submissions${statusQuery}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }, signal,
       });
       if (res.status === 401 || res.status === 403) { handleLogout(); return; }
       const data = await res.json();
-      if (data.success) {
-        setSubmissions(data.data);
-      }
+      if (!res.ok || !data.success) throw new Error(data.error?.message || 'Unable to load submissions.');
+      setSubmissions(data.data);
     } catch (err) {
-      console.error('Fetch submissions error:', err);
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setListError(err instanceof Error ? err.message : 'Unable to load submissions.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setListLoading(false);
     }
   };
 
   // Fetch Quests
-  const fetchQuests = async () => {
+  const fetchQuests = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`${API_BASE}/quests`);
+      setListLoading(true);
+      setListError('');
+      const res = await fetch(`${API_BASE}/quests`, { signal });
       const data = await res.json();
-      if (data.success) {
-        setQuests(data.data);
-      }
+      if (!res.ok || !data.success) throw new Error(data.error?.message || 'Unable to load quests.');
+      setQuests(data.data);
     } catch (err) {
-      console.error('Fetch quests error:', err);
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setListError(err instanceof Error ? err.message : 'Unable to load quests.');
+    } finally {
+      if (!signal?.aborted) setListLoading(false);
     }
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     if (token) {
       if (activeTab === 'quests') {
-        fetchQuests();
+        void fetchQuests(controller.signal);
       } else if (activeTab === 'pending' || activeTab === 'all') {
-        fetchSubmissions();
+        void fetchSubmissions(controller.signal);
       }
     }
+    return () => controller.abort();
   }, [token, activeTab]);
+
+  useEffect(() => {
+    if (!showRejectModal) return;
+    rejectInputRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !reviewingId) {
+        setShowRejectModal(false);
+        setRejectionReason('');
+        requestAnimationFrame(() => rejectTriggerRef.current?.focus());
+      }
+      if (event.key === 'Tab') {
+        const dialog = rejectInputRef.current?.closest('[role="dialog"]');
+        const focusable = dialog?.querySelectorAll<HTMLElement>('textarea, button:not(:disabled)');
+        if (!focusable?.length) return;
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showRejectModal, reviewingId]);
 
   // Review Submission
   const handleReview = async (id: string, action: 'approve' | 'reject', reason?: string) => {
-    if (loading) return;
+    if (reviewingId || (action === 'reject' && !reason?.trim())) return;
     try {
-      setLoading(true);
+      setReviewingId(id);
+      setReviewError('');
       const res = await fetch(`${API_BASE}/admin/submissions/${id}`, {
         method: 'PATCH',
         headers: {
@@ -170,20 +209,20 @@ export function App() {
       if (res.status === 401 || res.status === 403) { handleLogout(); return; }
       if (!res.ok) {
         const data = await res.json();
-        console.error('Review failed:', data.error?.message || res.statusText);
-        return;
+        throw new Error(data.error?.message || 'Review failed.');
       }
       const data = await res.json();
       if (data.success) {
         setShowRejectModal(false);
         setSelectedSub(null);
         setRejectionReason('');
-        fetchSubmissions();
+        rejectTriggerRef.current?.focus();
+        await fetchSubmissions();
       }
     } catch (err) {
-      console.error('Review submission error:', err);
+      setReviewError(err instanceof Error ? err.message : 'Review failed.');
     } finally {
-      setLoading(false);
+      setReviewingId(null);
     }
   };
 
@@ -210,13 +249,13 @@ export function App() {
           )}
           <button
             onClick={handleLogin}
-            disabled={loading}
+            disabled={authLoading}
             style={{
               width: '100%',
               padding: '16px',
               borderRadius: '14px',
-              background: loading ? '#e9e8e4' : '#ffb703',
-              color: loading ? '#837560' : '#6b4b00',
+              background: authLoading ? '#e9e8e4' : '#ffb703',
+              color: authLoading ? '#837560' : '#6b4b00',
               fontWeight: 700,
               fontSize: '16px',
               boxShadow: '0 4px 16px rgba(255, 183, 3, 0.3)',
@@ -226,7 +265,7 @@ export function App() {
               gap: '10px'
             }}
           >
-            {loading ? (
+            {authLoading ? (
               'Authenticating...'
             ) : (
               <>
@@ -237,7 +276,7 @@ export function App() {
           </button>
 
           <div style={{ marginTop: '28px', fontSize: '11px', color: '#837560' }}>
-            PROTOTYPE BUILD V0.4.2 — ADMIN PORTAL
+            PROTOTYPE BUILD V1.0.0 — ADMIN PORTAL
           </div>
         </div>
       </div>
@@ -363,13 +402,15 @@ export function App() {
         {/* Pending & All Submissions Tab */}
         {(activeTab === 'pending' || activeTab === 'all') && (
           <div>
-            {submissions.length === 0 ? (
+            {listError && <div className="load-error" role="alert">{listError} <button onClick={() => void fetchSubmissions()}>Retry</button></div>}
+            {reviewError && <div className="load-error" role="alert">{reviewError}</div>}
+            {listLoading ? <div className="stitch-panel loading-panel">Loading submissions…</div> : submissions.length === 0 ? (
               <div className="stitch-panel" style={{ padding: '48px', textAlign: 'center', color: '#837560' }}>
                 <Clock size={40} style={{ opacity: 0.5, marginBottom: '12px' }} />
                 <p style={{ fontWeight: 600 }}>No submissions found in this queue.</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+              <div className="submission-grid">
                 {submissions.map((sub) => (
                   <div key={sub.id} className="stitch-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
@@ -410,10 +451,12 @@ export function App() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#514532' }}>Distance Offset:</span>
-                          <span style={{ fontWeight: 700, color: sub.distance_meters <= 200 ? '#2d6a4f' : '#bc4749' }}>
-                            {sub.distance_meters}m {sub.distance_meters <= 200 ? '(Valid Radius)' : '(Exceeds Threshold)'}
-                          </span>
-                        </div>
+                           <span style={{ fontWeight: 700, color: sub.distance_meters <= sub.quest_radius_meters ? '#2d6a4f' : '#bc4749' }}>
+                            {sub.distance_meters}m / {sub.quest_radius_meters}m {sub.distance_meters <= sub.quest_radius_meters ? '(Valid)' : '(Exceeded)'}
+                           </span>
+                         </div>
+                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#514532' }}>Captured:</span><span>{new Date(sub.created_at).toLocaleString()}</span></div>
+                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#514532' }}>GPS Proof:</span><span>{sub.captured_lat.toFixed(5)}, {sub.captured_lng.toFixed(5)}{sub.captured_accuracy != null ? ` (±${sub.captured_accuracy}m)` : ''}</span></div>
                       </div>
 
                       {sub.rejection_reason && (
@@ -427,19 +470,21 @@ export function App() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
                         <button
                           onClick={() => handleReview(sub.id, 'approve')}
-                          disabled={loading}
-                          style={{ padding: '12px', borderRadius: '10px', background: loading ? '#e9e8e4' : '#2d6a4f', color: loading ? '#837560' : '#fff', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: loading ? 'not-allowed' : 'pointer' }}
+                          disabled={reviewingId !== null}
+                          style={{ padding: '12px', borderRadius: '10px', background: reviewingId ? '#e9e8e4' : '#2d6a4f', color: reviewingId ? '#837560' : '#fff', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
                           <Check size={16} /> Approve
                         </button>
 
                         <button
-                          onClick={() => {
+                          onClick={(event) => {
+                            rejectTriggerRef.current = event.currentTarget;
                             setSelectedSub(sub);
+                            setReviewError('');
                             setShowRejectModal(true);
                           }}
-                          disabled={loading}
-                          style={{ padding: '12px', borderRadius: '10px', background: 'rgba(188, 71, 73, 0.15)', border: '1px solid #bc4749', color: loading ? '#837560' : '#bc4749', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: loading ? 'not-allowed' : 'pointer' }}
+                          disabled={reviewingId !== null}
+                          style={{ padding: '12px', borderRadius: '10px', background: 'rgba(188, 71, 73, 0.15)', border: '1px solid #bc4749', color: reviewingId ? '#837560' : '#bc4749', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                         >
                           <X size={16} /> Reject
                         </button>
@@ -454,7 +499,9 @@ export function App() {
 
         {/* Quests Tab */}
         {activeTab === 'quests' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          <div>
+          {listError && <div className="load-error" role="alert">{listError} <button onClick={() => void fetchQuests()}>Retry</button></div>}
+          {listLoading ? <div className="stitch-panel loading-panel">Loading quests…</div> : <div className="quest-grid">
             {quests.map((q) => (
               <div key={q.id} className="stitch-card" style={{ padding: '20px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '6px', background: '#beead1', color: '#436b58', marginBottom: '8px', display: 'inline-block' }}>
@@ -462,12 +509,14 @@ export function App() {
                 </span>
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#582f0e', marginBottom: '6px' }}>{q.title}</h3>
                 <p style={{ fontSize: '13px', color: '#514532', marginBottom: '14px' }}>{q.location_name}</p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#efeeea', padding: '10px 14px', borderRadius: '10px' }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#efeeea', padding: '10px 14px', borderRadius: '10px' }}>
                   <span>Reward: <strong style={{ color: '#7d5800' }}>+{q.reward_points} PTS</strong></span>
                   <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#582f0e', fontWeight: 700 }}>{q.marker_code}</span>
-                </div>
+                 </div>
+                 <p style={{ fontSize: '11px', color: '#837560', marginTop: '10px' }}>GPS radius: {q.radius_meters}m · Proof: marker code + captured coordinates</p>
               </div>
             ))}
+          </div>}
           </div>
         )}
 
@@ -499,12 +548,15 @@ export function App() {
       {/* Reject Reason Modal */}
       {showRejectModal && selectedSub && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(13, 27, 42, 0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100 }}>
-          <div className="stitch-panel" style={{ width: '100%', maxWidth: '440px', padding: '28px' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px', color: '#bc4749' }}>Reject Quest Submission</h3>
-            <p style={{ fontSize: '14px', color: '#514532', marginBottom: '16px' }}>
+          <div className="stitch-panel" role="dialog" aria-modal="true" aria-labelledby="reject-title" aria-describedby="reject-description" style={{ width: '100%', maxWidth: '440px', padding: '28px' }}>
+            <h3 id="reject-title" style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px', color: '#bc4749' }}>Reject Quest Submission</h3>
+            <p id="reject-description" style={{ fontSize: '14px', color: '#514532', marginBottom: '16px' }}>
               Please state the reason for rejecting <strong>{selectedSub.user_name}</strong>'s proof:
             </p>
             <textarea
+              ref={rejectInputRef}
+              aria-label="Rejection reason"
+              required
               rows={4}
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
@@ -516,16 +568,19 @@ export function App() {
                 onClick={() => {
                   setShowRejectModal(false);
                   setRejectionReason('');
+                  requestAnimationFrame(() => rejectTriggerRef.current?.focus());
                 }}
+                disabled={reviewingId !== null}
                 style={{ padding: '10px 16px', borderRadius: '10px', background: '#e9e8e4', color: '#514532', fontWeight: 600 }}
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleReview(selectedSub.id, 'reject', rejectionReason || 'GPS distance threshold exceeded.')}
+                onClick={() => handleReview(selectedSub.id, 'reject', rejectionReason.trim())}
+                disabled={!rejectionReason.trim() || reviewingId !== null}
                 style={{ padding: '10px 16px', borderRadius: '10px', background: '#bc4749', color: '#fff', fontWeight: 700 }}
               >
-                Confirm Rejection
+                {reviewingId ? 'Rejecting…' : 'Confirm Rejection'}
               </button>
             </div>
           </div>
