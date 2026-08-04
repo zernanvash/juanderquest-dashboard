@@ -43,7 +43,7 @@ interface Quest {
   marker_code: string;
   radius_meters: number;
 }
-interface Spot { id:string; name:string; category:string; subcategory:string; municipality:string; source_type?:string; source_name:string; trust_level:string; status:string; image_url?:string; }
+interface Spot { id:string; name:string; category:string; subcategory:string; municipality:string; source_type?:string; source_name:string; trust_level:string; status:string; image_url?:string; crowd_capacity_band?:'low'|'medium'|'high'; crowd_status?:string; recommendation_suppressed?:boolean; }
 
 interface Voucher {
   id: string;
@@ -156,7 +156,8 @@ export function App() {
       if (!signal?.aborted) setListLoading(false);
     }
   };
-  const fetchSpots = async (signal?: AbortSignal) => { try { setListLoading(true);setListError('');const res=await fetch(`${API_BASE}/spots`,{signal});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error?.message||'Unable to load spots.');setSpots(data.data);}catch(err){if(err instanceof DOMException&&err.name==='AbortError')return;setListError(err instanceof Error?err.message:'Unable to load spots.');}finally{if(!signal?.aborted)setListLoading(false);} };
+  const fetchSpots = async (signal?: AbortSignal) => { try { setListLoading(true);setListError('');const res=await fetch(`${API_BASE}/admin/spots`,{signal,headers:{Authorization:`Bearer ${token}`}});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error?.message||'Unable to load spots.');setSpots(data.data);}catch(err){if(err instanceof DOMException&&err.name==='AbortError')return;setListError(err instanceof Error?err.message:'Unable to load spots.');}finally{if(!signal?.aborted)setListLoading(false);} };
+  const reviewSpot=async(spot:Spot,status:'published'|'needs_review'|'unpublished',band:Spot['crowd_capacity_band']=spot.crowd_capacity_band||'medium',suppressed=spot.recommendation_suppressed||false)=>{try{setReviewingId(spot.id);setReviewError('');const res=await fetch(`${API_BASE}/admin/spots/${spot.id}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({status,crowd_capacity_band:band,recommendation_suppressed:suppressed})});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error?.message||'Unable to update spot.');setSpots(current=>current.map(item=>item.id===spot.id?data.data:item));}catch(err){setReviewError(err instanceof Error?err.message:'Unable to update spot.');}finally{setReviewingId(null);}};
 
   useEffect(() => {
     const controller = new AbortController();
@@ -509,6 +510,7 @@ export function App() {
 
         {activeTab === 'spots' && (
           <div>
+            {reviewError && <div className="load-error">{reviewError}</div>}
             {listError && <div className="load-error">{listError}<button onClick={()=>void fetchSpots()}>Retry</button></div>}
             {listLoading ? <div className="stitch-panel loading-panel">Loading spots…</div> : <div className="quest-grid">
               {spots.map(s => (
@@ -521,6 +523,9 @@ export function App() {
                   <h3 style={{fontSize:'18px',fontWeight:800,color:'#582f0e',margin:'4px 0'}}>{s.name}</h3>
                   <p style={{fontSize:'13px',color:'#514532'}}>{s.municipality}</p>
                   <p style={{fontSize:'11px',color:'#837560',marginTop:'4px'}}>Source: {s.source_name} · Trust: {s.trust_level}</p>
+                  <p style={{fontSize:'11px',fontWeight:700,color:s.crowd_status==='estimated_busy'?'#bc4749':'#436b58'}}>Status: {s.status.replace(/_/g,' ')} · Crowd: {(s.crowd_status||'unknown').replace(/_/g,' ')}</p>
+                  <label style={{fontSize:'11px',color:'#514532'}}>Capacity band <select value={s.crowd_capacity_band||'medium'} disabled={reviewingId===s.id} onChange={e=>void reviewSpot(s,s.status as 'published'|'needs_review'|'unpublished',e.target.value as Spot['crowd_capacity_band'])} style={{marginLeft:'6px',padding:'5px',borderRadius:'6px'}}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+                  <div style={{display:'flex',gap:'6px',marginTop:'4px'}}>{s.status!=='published'&&<button disabled={reviewingId===s.id} onClick={()=>void reviewSpot(s,'published')} style={{padding:'7px 10px',borderRadius:'8px',background:'#2d6a4f',color:'white',fontWeight:700}}>Approve</button>}<button disabled={reviewingId===s.id} onClick={()=>void reviewSpot(s,'unpublished')} style={{padding:'7px 10px',borderRadius:'8px',background:'#f3e5d0',color:'#582f0e',fontWeight:700}}>{s.status==='published'?'Unpublish':'Reject'}</button><button disabled={reviewingId===s.id} onClick={()=>void reviewSpot(s,s.status==='published'?'published':'unpublished',s.crowd_capacity_band,!s.recommendation_suppressed)} style={{padding:'7px 10px',borderRadius:'8px',background:'#e9e8e4',fontWeight:700}}>{s.recommendation_suppressed?'Allow alternatives':'Suppress alternative'}</button></div>
                 </div>
               ))}
             </div>}
