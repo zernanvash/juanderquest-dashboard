@@ -43,6 +43,7 @@ interface Quest {
   marker_code: string;
   radius_meters: number;
 }
+interface Spot { id:string; name:string; category:string; subcategory:string; municipality:string; source_type?:string; source_name:string; trust_level:string; status:string; image_url?:string; }
 
 interface Voucher {
   id: string;
@@ -64,9 +65,10 @@ export function App() {
     }
     return localStorage.getItem('admin_token');
   });
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'quests' | 'proposals' | 'vouchers'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'vouchers'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [spots, setSpots] = useState<Spot[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState('');
@@ -154,11 +156,14 @@ export function App() {
       if (!signal?.aborted) setListLoading(false);
     }
   };
+  const fetchSpots = async (signal?: AbortSignal) => { try { setListLoading(true);setListError('');const res=await fetch(`${API_BASE}/spots`,{signal});const data=await res.json();if(!res.ok||!data.success)throw new Error(data.error?.message||'Unable to load spots.');setSpots(data.data);}catch(err){if(err instanceof DOMException&&err.name==='AbortError')return;setListError(err instanceof Error?err.message:'Unable to load spots.');}finally{if(!signal?.aborted)setListLoading(false);} };
 
   useEffect(() => {
     const controller = new AbortController();
     if (token) {
-      if (activeTab === 'quests') {
+      if (activeTab === 'spots') {
+        void fetchSpots(controller.signal);
+      } else if (activeTab === 'quests') {
         void fetchQuests(controller.signal);
       } else if (activeTab === 'pending' || activeTab === 'all') {
         void fetchSubmissions(controller.signal);
@@ -247,6 +252,11 @@ export function App() {
           {loginError && (
             <p style={{ color: '#bc4749', fontSize: '12px', marginBottom: '12px' }}>{loginError}</p>
           )}
+          <button
+            onClick={() => setActiveTab('spots')}
+            style={{padding:'10px 20px',borderRadius:'20px',background:activeTab==='spots'?'#ffb703':'#e9e8e4',color:activeTab==='spots'?'#6b4b00':'#514532',fontWeight:700,fontSize:'13px',display:'flex',alignItems:'center',gap:'8px'}}
+          ><Compass size={16}/> Destination Spots</button>
+
           <button
             onClick={handleLogin}
             disabled={authLoading}
@@ -497,7 +507,26 @@ export function App() {
           </div>
         )}
 
-        {/* Quests Tab */}
+        {activeTab === 'spots' && (
+          <div>
+            {listError && <div className="load-error">{listError}<button onClick={()=>void fetchSpots()}>Retry</button></div>}
+            {listLoading ? <div className="stitch-panel loading-panel">Loading spots…</div> : <div className="quest-grid">
+              {spots.map(s => (
+                <div key={s.id} className="stitch-card" style={{padding:'20px',display:'flex',flexDirection:'column',gap:'8px'}}>
+                  {s.image_url ? <img src={s.image_url} alt={s.name} style={{width:'100%',height:'120px',objectFit:'cover',borderRadius:'12px'}} /> : null}
+                  <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
+                    <span style={{fontSize:'10px',fontWeight:700,textTransform:'uppercase',padding:'4px 8px',borderRadius:'6px',background:'#beead1',color:'#436b58'}}>{s.subcategory.replace(/_/g,' ')}</span>
+                    <span style={{fontSize:'10px',fontWeight:700,padding:'4px 8px',borderRadius:'6px',background:s.source_type==='community_resident'?'#ffe082':'#e0e0e0',color:'#582f0e'}}>{s.source_type==='community_resident'?'Community Uploaded':s.source_name}</span>
+                  </div>
+                  <h3 style={{fontSize:'18px',fontWeight:800,color:'#582f0e',margin:'4px 0'}}>{s.name}</h3>
+                  <p style={{fontSize:'13px',color:'#514532'}}>{s.municipality}</p>
+                  <p style={{fontSize:'11px',color:'#837560',marginTop:'4px'}}>Source: {s.source_name} · Trust: {s.trust_level}</p>
+                </div>
+              ))}
+            </div>}
+          </div>
+        )}
+
         {activeTab === 'quests' && (
           <div>
           {listError && <div className="load-error" role="alert">{listError} <button onClick={() => void fetchQuests()}>Retry</button></div>}
