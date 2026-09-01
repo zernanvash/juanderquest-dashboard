@@ -14,8 +14,10 @@ import {
   Sparkles,
   Vote,
   Store,
+  BarChart3,
 } from 'lucide-react';
 import { GovernanceControlCenter } from './GovernanceControlCenter';
+import { WebAnalyticsDashboard } from './WebAnalyticsDashboard';
 
 interface Submission {
   id: string;
@@ -65,7 +67,7 @@ export function App() {
     }
     return localStorage.getItem('admin_token');
   });
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'vouchers'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'vouchers' | 'analytics'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -237,7 +239,7 @@ export function App() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#faf9f5', padding: '20px' }}>
         <div className="stitch-panel" style={{ width: '100%', maxWidth: '440px', padding: '40px', textAlign: 'center' }}>
           <div style={{ margin: '0 auto 20px', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="JuanderQuest Logo" style={{ width: '100%', height: 'auto', filter: 'drop-shadow(0 8px 16px rgba(88, 47, 14, 0.15))' }} />
+            <img src="/logo.png" alt="JuanDerQuest administration logo" width="100" height="100" style={{ width: '100%', height: 'auto', filter: 'drop-shadow(0 8px 16px rgba(88, 47, 14, 0.15))' }} />
           </div>
           
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#582f0e', display: 'block', marginBottom: '6px' }}>
@@ -299,7 +301,7 @@ export function App() {
       {/* Header */}
       <header className="stitch-panel" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <img src="/logo.png" alt="Logo" style={{ height: '40px', width: 'auto' }} />
+          <img src="/logo.png" alt="JuanDerQuest" width="40" height="40" style={{ height: '40px', width: '40px' }} />
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#582f0e' }}>JuanderQuest Control Room</h2>
             <p style={{ fontSize: '12px', color: '#514532' }}>Pangasinan Destination Moderation & Verification Portal</p>
@@ -408,6 +410,7 @@ export function App() {
           >
             <Store size={16} /> Merchant Vouchers
           </button>
+          <button onClick={() => setActiveTab('analytics')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab === 'analytics' ? '#ffb703' : '#e9e8e4', color:activeTab === 'analytics' ? '#6b4b00' : '#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:'8px' }}><BarChart3 size={16} /> Web Analytics</button>
         </div>
 
         {/* Pending & All Submissions Tab */}
@@ -515,7 +518,7 @@ export function App() {
             {listLoading ? <div className="stitch-panel loading-panel">Loading spots…</div> : <div className="quest-grid">
               {spots.map(s => (
                 <div key={s.id} className="stitch-card" style={{padding:'20px',display:'flex',flexDirection:'column',gap:'8px'}}>
-                  {s.image_url ? <img src={s.image_url} alt={s.name} style={{width:'100%',height:'120px',objectFit:'cover',borderRadius:'12px'}} /> : null}
+                  {s.image_url ? <img src={s.image_url} alt={`${s.name} destination`} width="480" height="120" style={{width:'100%',height:'120px',objectFit:'cover',borderRadius:'12px'}} /> : null}
                   <div style={{display:'flex',gap:'6px',alignItems:'center',flexWrap:'wrap'}}>
                     <span style={{fontSize:'10px',fontWeight:700,textTransform:'uppercase',padding:'4px 8px',borderRadius:'6px',background:'#beead1',color:'#436b58'}}>{s.subcategory.replace(/_/g,' ')}</span>
                     <span style={{fontSize:'10px',fontWeight:700,padding:'4px 8px',borderRadius:'6px',background:s.source_type==='community_resident'?'#ffe082':'#e0e0e0',color:'#582f0e'}}>{s.source_type==='community_resident'?'Community Uploaded':s.source_name}</span>
@@ -577,6 +580,7 @@ export function App() {
             ))}
           </div>
         )}
+        {activeTab === 'analytics' && <WebAnalyticsDashboard token={token} onUnauthorized={handleLogout} />}
       </main>
 
       {/* Reject Reason Modal */}
