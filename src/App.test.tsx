@@ -41,4 +41,42 @@ describe('dashboard stabilization', () => {
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText('Loading submissions…')).not.toBeInTheDocument());
   });
+  it('requests test submissions with header and filters between live and qa items', async () => {
+    localStorage.setItem('admin_token', 'token');
+    const liveSub = { ...submission, id: 'sub-live', quest_title: 'Live Quest', is_test: false };
+    const qaSub = { ...submission, id: 'sub-qa', quest_title: 'Synthetic Test Quest', is_test: true };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: [liveSub, qaSub] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+
+    // Check header sent
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const callArgs = fetchMock.mock.calls[0];
+    expect(callArgs[0]).toContain('/admin/submissions');
+    expect(callArgs[1]?.headers).toMatchObject({
+      Authorization: 'Bearer token',
+      'x-include-test': 'true',
+    });
+
+    // Check both appear initially
+    expect(await screen.findByText('Live Quest')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic Test Quest')).toBeInTheDocument();
+    expect(screen.getByText(/QA Test Fixture/i)).toBeInTheDocument();
+
+    // Filter by live production only
+    fireEvent.click(screen.getByRole('button', { name: /Live Production/i }));
+    expect(screen.getByText('Live Quest')).toBeInTheDocument();
+    expect(screen.queryByText('Synthetic Test Quest')).not.toBeInTheDocument();
+
+    // Filter by QA fixtures only
+    fireEvent.click(screen.getByRole('button', { name: /QA Fixtures/i }));
+    expect(screen.queryByText('Live Quest')).not.toBeInTheDocument();
+    expect(screen.getByText('Synthetic Test Quest')).toBeInTheDocument();
+  });
 });

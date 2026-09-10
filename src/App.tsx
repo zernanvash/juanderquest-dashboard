@@ -34,6 +34,7 @@ interface Submission {
   status: 'pending' | 'approved' | 'rejected';
   rejection_reason?: string;
   created_at: string;
+  is_test?: boolean;
 }
 
 interface Quest {
@@ -69,6 +70,7 @@ export function App() {
   });
   const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'vouchers' | 'analytics'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [qaFilter, setQaFilter] = useState<'all' | 'live' | 'qa'>('all');
   const [quests, setQuests] = useState<Quest[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [authLoading, setAuthLoading] = useState(false);
@@ -128,7 +130,10 @@ export function App() {
       setListError('');
       const statusQuery = activeTab === 'pending' ? '?status=pending' : '';
       const res = await fetch(`${API_BASE}/admin/submissions${statusQuery}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-include-test': 'true',
+        }, signal,
       });
       if (res.status === 401 || res.status === 403) { handleLogout(); return; }
       const data = await res.json();
@@ -296,6 +301,12 @@ export function App() {
     );
   }
 
+    const displayedSubmissions = submissions.filter((sub) => {
+    if (qaFilter === 'live') return !sub.is_test;
+    if (qaFilter === 'qa') return Boolean(sub.is_test);
+    return true;
+  });
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#faf9f5' }}>
       {/* Header */}
@@ -418,18 +429,87 @@ export function App() {
           <div>
             {listError && <div className="load-error" role="alert">{listError} <button onClick={() => void fetchSubmissions()}>Retry</button></div>}
             {reviewError && <div className="load-error" role="alert">{reviewError}</div>}
-            {listLoading ? <div className="stitch-panel loading-panel">Loading submissions…</div> : submissions.length === 0 ? (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#837560' }}>Filter Queue:</span>
+              <button
+                type="button"
+                onClick={() => setQaFilter('all')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: qaFilter === 'all' ? '#582f0e' : '#e9e8e4',
+                  color: qaFilter === 'all' ? '#ffffff' : '#514532',
+                }}
+              >
+                All ({submissions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQaFilter('live')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: qaFilter === 'live' ? '#2d6a4f' : '#e9e8e4',
+                  color: qaFilter === 'live' ? '#ffffff' : '#514532',
+                }}
+              >
+                Live Production ({submissions.filter(s => !s.is_test).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setQaFilter('qa')}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: qaFilter === 'qa' ? '#d97706' : '#e9e8e4',
+                  color: qaFilter === 'qa' ? '#ffffff' : '#514532',
+                }}
+              >
+                QA Fixtures ({submissions.filter(s => s.is_test).length})
+              </button>
+            </div>
+            {listLoading ? <div className="stitch-panel loading-panel">Loading submissions…</div> : displayedSubmissions.length === 0 ? (
               <div className="stitch-panel" style={{ padding: '48px', textAlign: 'center', color: '#837560' }}>
                 <Clock size={40} style={{ opacity: 0.5, marginBottom: '12px' }} />
                 <p style={{ fontWeight: 600 }}>No submissions found in this queue.</p>
               </div>
             ) : (
               <div className="submission-grid">
-                {submissions.map((sub) => (
+                {displayedSubmissions.map((sub) => (
                   <div key={sub.id} className="stitch-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                         <span style={{ fontSize: '11px', fontWeight: 700, color: '#837560' }}>ID: {sub.id.substring(0, 8)}</span>
+                        {sub.is_test && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              background: 'rgba(217, 119, 6, 0.15)',
+                              color: '#b45309',
+                              border: '1px solid rgba(217, 119, 6, 0.3)',
+                            }}
+                          >
+                            <ShieldAlert size={12} /> [QA Test Fixture]
+                          </span>
+                        )}
                         <span
                           style={{
                             padding: '4px 10px',
