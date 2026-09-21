@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { GovernanceControlCenter } from './GovernanceControlCenter';
 import { WebAnalyticsDashboard } from './WebAnalyticsDashboard';
+import { JuanChoiceAdmin } from './JuanChoiceAdmin';
 
 interface Submission {
   id: string;
@@ -68,7 +69,7 @@ export function App() {
     }
     return localStorage.getItem('admin_token');
   });
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'vouchers' | 'analytics'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'juanchoice' | 'vouchers' | 'analytics'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [qaFilter, setQaFilter] = useState<'all' | 'live' | 'qa'>('all');
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -421,6 +422,7 @@ export function App() {
           >
             <Store size={16} /> Merchant Vouchers
           </button>
+          <button onClick={() => setActiveTab('juanchoice')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab==='juanchoice'?'#ffb703':'#e9e8e4', color:activeTab==='juanchoice'?'#6b4b00':'#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:8 }}><Award size={16}/> JuanChoice</button>
           <button onClick={() => setActiveTab('analytics')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab === 'analytics' ? '#ffb703' : '#e9e8e4', color:activeTab === 'analytics' ? '#6b4b00' : '#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:'8px' }}><BarChart3 size={16} /> Web Analytics</button>
         </div>
 
@@ -661,6 +663,7 @@ export function App() {
           </div>
         )}
         {activeTab === 'analytics' && <WebAnalyticsDashboard token={token} onUnauthorized={handleLogout} />}
+        {activeTab === 'juanchoice' && <JuanChoiceAdmin token={token} onUnauthorized={handleLogout} />}
       </main>
 
       {/* Reject Reason Modal */}
