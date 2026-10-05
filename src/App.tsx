@@ -109,26 +109,55 @@ export function App() {
     return () => controller.abort();
   }, [activeTab]);
 
+  const parseTokenUser = (t: string | null) => {
+    if (!t) return null;
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1]));
+      const seed = String(payload.seed_id || '');
+      const isWallet = seed.startsWith('wallet:');
+      const cleanAddress = isWallet ? seed.replace(/^wallet:/, '') : '';
+      return {
+        id: payload.id,
+        seed_id: seed,
+        display_name: isWallet
+          ? `Traveler ${cleanAddress.slice(0, 6)}…${cleanAddress.slice(-4)}`
+          : seed === 'admin-1'
+          ? 'Tourism Officer Admin'
+          : seed || 'Administrator',
+        email: '',
+        role: payload.role || 'admin',
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const [adminProfile, setAdminProfile] = useState<{ id: string; seed_id: string; display_name: string; email: string; role: string; avatar_url?: string } | null>(() => parseTokenUser(token));
+
   const API_BASE = '/api/v1';
 
   // Demo Login
-  const handleLogin = async () => {
+  const handleLogin = async (seedId: string = 'wallet:0xfadd476c10b6a93bc26a226f9b7d8e8c556f9671') => {
     try {
       setAuthLoading(true);
       setLoginError('');
+      const normalizedSeed = seedId.trim().startsWith('0x') ? `wallet:${seedId.trim().toLowerCase()}` : seedId.trim();
       const res = await fetch(`${API_BASE}/auth/demo-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed_id: 'admin-1' }),
+        body: JSON.stringify({ seed_id: normalizedSeed }),
       });
       const data = await res.json();
       if (data.success) {
         setToken(data.data.token);
         localStorage.setItem('admin_token', data.data.token);
+        if (data.data.user) {
+          setAdminProfile(data.data.user);
+        }
       } else {
         setLoginError(data.error?.message || 'Login failed');
       }
-    } catch (err) {
+    } catch {
       setLoginError('Network error - cannot reach server');
     } finally {
       setAuthLoading(false);
@@ -137,6 +166,7 @@ export function App() {
 
   const handleLogout = () => {
     setToken(null);
+    setAdminProfile(null);
     localStorage.removeItem('admin_token');
   };
 
@@ -278,38 +308,63 @@ export function App() {
           {loginError && (
             <p style={{ color: '#bc4749', fontSize: '12px', marginBottom: '12px' }}>{loginError}</p>
           )}
-          <button
-            onClick={() => setActiveTab('spots')}
-            style={{padding:'10px 20px',borderRadius:'20px',background:activeTab==='spots'?'#ffb703':'#e9e8e4',color:activeTab==='spots'?'#6b4b00':'#514532',fontWeight:700,fontSize:'13px',display:'flex',alignItems:'center',gap:'8px'}}
-          ><Compass size={16}/> Destination Spots</button>
 
-          <button
-            onClick={handleLogin}
-            disabled={authLoading}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: '14px',
-              background: authLoading ? '#e9e8e4' : '#ffb703',
-              color: authLoading ? '#837560' : '#6b4b00',
-              fontWeight: 700,
-              fontSize: '16px',
-              boxShadow: '0 4px 16px rgba(255, 183, 3, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px'
-            }}
-          >
-            {authLoading ? (
-              'Authenticating...'
-            ) : (
-              <>
-                <span>Sign In as Admin</span>
-                <Sparkles size={18} />
-              </>
-            )}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+            {/* Primary: User's Admin Wallet */}
+            <button
+              type="button"
+              onClick={() => handleLogin('wallet:0xfadd476c10b6a93bc26a226f9b7d8e8c556f9671')}
+              disabled={authLoading}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '14px',
+                background: authLoading ? '#e9e8e4' : '#2d6a4f',
+                color: authLoading ? '#837560' : '#ffffff',
+                fontWeight: 700,
+                fontSize: '14px',
+                boxShadow: '0 4px 16px rgba(45, 106, 79, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              {authLoading ? (
+                'Authenticating...'
+              ) : (
+                <>
+                  <span>Sign In as Admin Wallet (0xFAdD…9671)</span>
+                  <Sparkles size={16} color="#ffb703" />
+                </>
+              )}
+            </button>
+
+            {/* Secondary: Default LGU Admin */}
+            <button
+              type="button"
+              onClick={() => handleLogin('admin-1')}
+              disabled={authLoading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '12px',
+                background: '#faf9f5',
+                border: '1px solid #d5c4ac',
+                color: '#582f0e',
+                fontWeight: 700,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+              }}
+            >
+              <span>Sign In as Tourism Officer (admin-1)</span>
+            </button>
+          </div>
 
           <div style={{ marginTop: '28px', fontSize: '11px', color: '#837560' }}>
             PROTOTYPE BUILD V1.0.0 — ADMIN PORTAL
@@ -337,7 +392,18 @@ export function App() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {adminProfile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f5f3ed', border: '1px solid #d5c4ac', padding: '4px 10px', borderRadius: '12px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#2d6a4f', color: '#fff', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {adminProfile.avatar_url ? <img src={adminProfile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'A'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: '#582f0e', lineHeight: 1.1 }}>{adminProfile.display_name}</span>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#2d6a4f' }}>Administrator</span>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#beead1', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: '#436b58' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2d6a4f' }}></div>
             <span>PANGASINAN PILOT ACTIVE</span>
