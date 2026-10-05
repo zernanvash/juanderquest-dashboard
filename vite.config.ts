@@ -9,10 +9,11 @@ export default defineConfig({
     setupFiles: './src/test-setup.ts',
   },
   server: {
-    port: 3000,
+    port: 5173,
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:4000',
         changeOrigin: true,
       },
     },

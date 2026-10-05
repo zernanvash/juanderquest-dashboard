@@ -19,6 +19,8 @@ import {
 import { GovernanceControlCenter } from './GovernanceControlCenter';
 import { WebAnalyticsDashboard } from './WebAnalyticsDashboard';
 import { JuanChoiceAdmin } from './JuanChoiceAdmin';
+import { AdminMiniMapPreview, ProximityGauge } from './AdminMiniMapPreview';
+import { QueueVisualAnalytics } from './QueueVisualAnalytics';
 
 interface Submission {
   id: string;
@@ -52,9 +54,9 @@ interface Spot { id:string; name:string; category:string; subcategory:string; mu
 interface Voucher {
   id: string;
   merchant_name: string;
-  offer_title: string;
+  title: string;
   cost_points: number;
-  category: string;
+  description: string;
 }
 
 export function App() {
@@ -86,11 +88,26 @@ export function App() {
   const rejectInputRef = useRef<HTMLTextAreaElement>(null);
   const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const vouchers: Voucher[] = [
-    { id: 'v1', merchant_name: 'Dagupan Bangus Grill & Restaurant', offer_title: '₱100 Meal Discount Voucher', cost_points: 50, category: 'FOOD & DINING' },
-    { id: 'v2', merchant_name: 'Hundred Islands Boatmen Association', offer_title: '15% Off Island Hopping Tour', cost_points: 75, category: 'ECO-TOURISM' },
-    { id: 'v3', merchant_name: 'Bolinao Souvenirs & Crafts', offer_title: 'Free Heritage Gift Token', cost_points: 40, category: 'TRADE & CRAFTS' },
-  ];
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [voucherError, setVoucherError] = useState('');
+  const [vouchersLoading, setVouchersLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'vouchers') return;
+    const controller = new AbortController();
+    setVouchersLoading(true);
+    fetch('/api/v1/vouchers', { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Voucher service unavailable');
+        const payload = await response.json();
+        if (!payload.success || !Array.isArray(payload.data)) throw new Error('Invalid voucher response');
+        setVouchers(payload.data);
+        setVoucherError('');
+      })
+      .catch(() => { if (!controller.signal.aborted) setVoucherError('Vouchers could not be loaded.'); })
+      .finally(() => { if (!controller.signal.aborted) setVouchersLoading(false); });
+    return () => controller.abort();
+  }, [activeTab]);
 
   const API_BASE = '/api/v1';
 
@@ -249,13 +266,13 @@ export function App() {
           </div>
           
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#582f0e', display: 'block', marginBottom: '6px' }}>
-            Pangasinan Tourism Verification
+            Tourism Verification
           </span>
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#582f0e', marginBottom: '8px' }}>
             JuanderQuest Control Room
           </h1>
           <p style={{ color: '#514532', fontSize: '13px', lineHeight: 1.5, marginBottom: '32px' }}>
-            Administrator portal for reviewing GPS-backed quest proof and moderating Pangasinan tourism destinations.
+            Administrator portal for reviewing GPS-backed quest proof and moderating community destinations. The current pilot covers Pangasinan.
           </p>
 
           {loginError && (
@@ -288,7 +305,7 @@ export function App() {
               'Authenticating...'
             ) : (
               <>
-                <span>Sign In as Pangasinan Admin</span>
+                <span>Sign In as Admin</span>
                 <Sparkles size={18} />
               </>
             )}
@@ -316,14 +333,14 @@ export function App() {
           <img src="/logo.png" alt="JuanDerQuest" width="40" height="40" style={{ height: '40px', width: '40px' }} />
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#582f0e' }}>JuanderQuest Control Room</h2>
-            <p style={{ fontSize: '12px', color: '#514532' }}>Pangasinan Destination Moderation & Verification Portal</p>
+            <p style={{ fontSize: '12px', color: '#514532' }}>Destination Moderation &amp; Verification Portal</p>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#beead1', padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, color: '#436b58' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2d6a4f' }}></div>
-            <span>PANGASINAN REGION ACTIVE</span>
+            <span>PANGASINAN PILOT ACTIVE</span>
           </div>
           <a href={travelerUrl} style={{ color: '#582f0e', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
             View traveler site
@@ -386,7 +403,7 @@ export function App() {
               gap: '8px',
             }}
           >
-            <MapPin size={16} /> Pangasinan Quests
+            <MapPin size={16} /> Quests
           </button>
 
           <button
@@ -431,6 +448,10 @@ export function App() {
           <div>
             {listError && <div className="load-error" role="alert">{listError} <button onClick={() => void fetchSubmissions()}>Retry</button></div>}
             {reviewError && <div className="load-error" role="alert">{reviewError}</div>}
+            
+            {/* Visual Queue Telemetry & Verification Health */}
+            <QueueVisualAnalytics submissions={submissions} />
+
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#837560' }}>Filter Queue:</span>
               <button
@@ -540,19 +561,39 @@ export function App() {
                       <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#582f0e', marginBottom: '6px' }}>{sub.quest_title}</h3>
                       <p style={{ fontSize: '13px', color: '#514532', marginBottom: '16px' }}>Submitted by: <strong style={{ color: '#1b1c1a' }}>{sub.user_name}</strong></p>
 
-                      <div style={{ background: '#efeeea', padding: '14px', borderRadius: '12px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#514532' }}>Marker Code:</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#582f0e' }}>{sub.scanned_marker_code}</span>
+                      {/* Visual Sovereign Mini Map Preview with Geofence & Offset */}
+                      <AdminMiniMapPreview
+                        targetLat={sub.target_lat}
+                        targetLng={sub.target_lng}
+                        capturedLat={sub.captured_lat}
+                        capturedLng={sub.captured_lng}
+                        questTitle={sub.quest_title}
+                        userName={sub.user_name}
+                        radiusMeters={sub.quest_radius_meters}
+                        distanceMeters={sub.distance_meters}
+                        capturedAccuracy={sub.captured_accuracy}
+                        status={sub.status}
+                      />
+
+                      <div style={{ background: '#efeeea', padding: '14px', borderRadius: '12px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: '#514532', fontWeight: 600 }}>Marker Code:</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#582f0e', background: '#e3dfd5', padding: '2px 8px', borderRadius: '6px' }}>{sub.scanned_marker_code}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#514532' }}>Distance Offset:</span>
-                           <span style={{ fontWeight: 700, color: sub.distance_meters <= sub.quest_radius_meters ? '#2d6a4f' : '#bc4749' }}>
-                            {sub.distance_meters}m / {sub.quest_radius_meters}m {sub.distance_meters <= sub.quest_radius_meters ? '(Valid)' : '(Exceeded)'}
-                           </span>
-                         </div>
-                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#514532' }}>Captured:</span><span>{new Date(sub.created_at).toLocaleString()}</span></div>
-                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#514532' }}>GPS Proof:</span><span>{sub.captured_lat.toFixed(5)}, {sub.captured_lng.toFixed(5)}{sub.captured_accuracy != null ? ` (±${sub.captured_accuracy}m)` : ''}</span></div>
+
+                        {/* Visual Proximity Meter */}
+                        <ProximityGauge distanceMeters={sub.distance_meters} radiusMeters={sub.quest_radius_meters} />
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#514532', paddingTop: '4px', borderTop: '1px solid #e3dfd5' }}>
+                          <span>Captured Time:</span>
+                          <span style={{ fontWeight: 600 }}>{new Date(sub.created_at).toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#514532' }}>
+                          <span>Sensor Accuracy:</span>
+                          <span style={{ fontWeight: 600, color: sub.captured_accuracy != null && sub.captured_accuracy <= 15 ? '#2d6a4f' : '#b45309' }}>
+                            {sub.captured_accuracy != null ? `±${sub.captured_accuracy}m (Mobile GNSS)` : 'Standard Mobile GPS'}
+                          </span>
+                        </div>
                       </div>
 
                       {sub.rejection_reason && (
@@ -632,7 +673,7 @@ export function App() {
                   <span>Reward: <strong style={{ color: '#7d5800' }}>+{q.reward_points} PTS</strong></span>
                   <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#582f0e', fontWeight: 700 }}>{q.marker_code}</span>
                  </div>
-                 <p style={{ fontSize: '11px', color: '#837560', marginTop: '10px' }}>GPS radius: {q.radius_meters}m · Proof: marker code + captured coordinates</p>
+                 <p style={{ fontSize: '11px', color: '#837560', marginTop: '10px' }}>Geofence Perimeter: {q.radius_meters}m boundary · Pure Flutter AR & Sovereign GPS Verification</p>
               </div>
             ))}
           </div>}
@@ -647,16 +688,17 @@ export function App() {
         {/* Merchant Vouchers Tab */}
         {activeTab === 'vouchers' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-            {vouchers.map((v) => (
+            {voucherError && <p role="alert">{voucherError}</p>}
+            {vouchersLoading && <p role="status">Loading vouchers...</p>}
+            {!vouchersLoading && !voucherError && vouchers.length === 0 && <p>No active vouchers are available.</p>}
+            {!vouchersLoading && !voucherError && vouchers.map((v) => (
               <div key={v.id} className="stitch-card" style={{ padding: '20px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '6px', background: 'rgba(63, 102, 83, 0.12)', color: '#3f6653', marginBottom: '8px', display: 'inline-block' }}>
-                  {v.category}
-                </span>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#582f0e', marginBottom: '4px' }}>{v.offer_title}</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#582f0e', marginBottom: '4px' }}>{v.title}</h3>
                 <p style={{ fontSize: '13px', fontWeight: 600, color: '#1b1c1a', marginBottom: '14px' }}>{v.merchant_name}</p>
+                <p style={{ fontSize: '12px', color: '#514532', marginBottom: '14px' }}>{v.description}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#efeeea', padding: '10px 14px', borderRadius: '10px' }}>
-                  <span>Cost: <strong style={{ color: '#7d5800' }}>{v.cost_points} PTS</strong></span>
-                  <span style={{ fontSize: '11px', color: '#2d6a4f', fontWeight: 700 }}>ACTIVE MERCHANT</span>
+                  <span>Cost: <strong style={{ color: '#7d5800' }}>{v.cost_points} mJDQ</strong></span>
+                  <span style={{ fontSize: '11px', color: '#2d6a4f', fontWeight: 700 }}>AVAILABLE OFFER</span>
                 </div>
               </div>
             ))}
