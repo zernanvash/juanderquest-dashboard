@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -21,6 +21,7 @@ import { WebAnalyticsDashboard } from './WebAnalyticsDashboard';
 import { JuanChoiceAdmin } from './JuanChoiceAdmin';
 import { AdminMiniMapPreview, ProximityGauge } from './AdminMiniMapPreview';
 import { QueueVisualAnalytics } from './QueueVisualAnalytics';
+import { EconomyLabOverview } from './EconomyLabOverview';
 
 interface Submission {
   id: string;
@@ -71,7 +72,7 @@ export function App() {
     }
     return localStorage.getItem('admin_token');
   });
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'juanchoice' | 'vouchers' | 'analytics'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'juanchoice' | 'vouchers' | 'analytics' | 'economyLab'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [qaFilter, setQaFilter] = useState<'all' | 'live' | 'qa'>('all');
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -164,11 +165,11 @@ export function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setToken(null);
     setAdminProfile(null);
     localStorage.removeItem('admin_token');
-  };
+  }, []);
 
   // Fetch Submissions
   const fetchSubmissions = async (signal?: AbortSignal) => {
@@ -364,6 +365,12 @@ export function App() {
             >
               <span>Sign In as Tourism Officer (admin-1)</span>
             </button>
+            {import.meta.env.DEV && import.meta.env.VITE_JDQ_ECONOMY_LAB === 'true' &&
+              <button type="button" onClick={() => handleLogin('admin-2')} disabled={authLoading}
+                style={{ width:'100%', minHeight:44, padding:12, borderRadius:12, background:'#fff8df',
+                  border:'1px solid #a16207', color:'#713f12', fontWeight:700 }}>
+                Sign in as independent lab appeal reviewer (admin-2)
+              </button>}
           </div>
 
           <div style={{ marginTop: '28px', fontSize: '11px', color: '#837560' }}>
@@ -456,6 +463,23 @@ export function App() {
           </button>
 
           <button
+            onClick={() => setActiveTab('spots')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '20px',
+              background: activeTab === 'spots' ? '#ffb703' : '#e9e8e4',
+              color: activeTab === 'spots' ? '#6b4b00' : '#514532',
+              fontWeight: 700,
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Compass size={16} /> Destinations
+          </button>
+
+          <button
             onClick={() => setActiveTab('quests')}
             style={{
               padding: '10px 20px',
@@ -486,7 +510,7 @@ export function App() {
               gap: '8px',
             }}
           >
-            <Vote size={16} /> Governance & Tokenomics
+            <Vote size={16} /> Governance (Archive)
           </button>
 
           <button
@@ -507,6 +531,8 @@ export function App() {
           </button>
           <button onClick={() => setActiveTab('juanchoice')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab==='juanchoice'?'#ffb703':'#e9e8e4', color:activeTab==='juanchoice'?'#6b4b00':'#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:8 }}><Award size={16}/> JuanChoice</button>
           <button onClick={() => setActiveTab('analytics')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab === 'analytics' ? '#ffb703' : '#e9e8e4', color:activeTab === 'analytics' ? '#6b4b00' : '#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:'8px' }}><BarChart3 size={16} /> Web Analytics</button>
+          {import.meta.env.DEV && import.meta.env.VITE_JDQ_ECONOMY_LAB === 'true' &&
+            <button onClick={() => setActiveTab('economyLab')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab === 'economyLab' ? '#ffb703' : '#e9e8e4', color:'#514532', fontWeight:700, fontSize:'13px' }}>Economy Lab</button>}
         </div>
 
         {/* Pending & All Submissions Tab */}
@@ -772,6 +798,8 @@ export function App() {
         )}
         {activeTab === 'analytics' && <WebAnalyticsDashboard token={token} onUnauthorized={handleLogout} />}
         {activeTab === 'juanchoice' && <JuanChoiceAdmin token={token} onUnauthorized={handleLogout} />}
+        {activeTab === 'economyLab' && import.meta.env.DEV && import.meta.env.VITE_JDQ_ECONOMY_LAB === 'true' && token &&
+          <EconomyLabOverview token={token} onUnauthorized={handleLogout} />}
       </main>
 
       {/* Reject Reason Modal */}
