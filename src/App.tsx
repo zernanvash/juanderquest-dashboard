@@ -15,6 +15,7 @@ import {
   Vote,
   Store,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 import { GovernanceControlCenter } from './GovernanceControlCenter';
 import { WebAnalyticsDashboard } from './WebAnalyticsDashboard';
@@ -22,6 +23,7 @@ import { JuanChoiceAdmin } from './JuanChoiceAdmin';
 import { AdminMiniMapPreview, ProximityGauge } from './AdminMiniMapPreview';
 import { QueueVisualAnalytics } from './QueueVisualAnalytics';
 import { EconomyLabOverview } from './EconomyLabOverview';
+import { AffiliateReviewCenter } from './AffiliateReviewCenter';
 
 interface Submission {
   id: string;
@@ -72,7 +74,7 @@ export function App() {
     }
     return localStorage.getItem('admin_token');
   });
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'juanchoice' | 'vouchers' | 'analytics' | 'economyLab'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'spots' | 'quests' | 'proposals' | 'affiliates' | 'juanchoice' | 'vouchers' | 'analytics' | 'economyLab'>('pending');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [qaFilter, setQaFilter] = useState<'all' | 'live' | 'qa'>('all');
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -529,6 +531,22 @@ export function App() {
           >
             <Store size={16} /> Merchant Vouchers
           </button>
+          <button
+            onClick={() => setActiveTab('affiliates')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '20px',
+              background: activeTab === 'affiliates' ? '#ffb703' : '#e9e8e4',
+              color: activeTab === 'affiliates' ? '#6b4b00' : '#514532',
+              fontWeight: 700,
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Building2 size={16} /> Affiliates
+          </button>
           <button onClick={() => setActiveTab('juanchoice')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab==='juanchoice'?'#ffb703':'#e9e8e4', color:activeTab==='juanchoice'?'#6b4b00':'#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:8 }}><Award size={16}/> JuanChoice</button>
           <button onClick={() => setActiveTab('analytics')} style={{ padding:'10px 20px', borderRadius:'20px', background:activeTab === 'analytics' ? '#ffb703' : '#e9e8e4', color:activeTab === 'analytics' ? '#6b4b00' : '#514532', fontWeight:700, fontSize:'13px', display:'flex', alignItems:'center', gap:'8px' }}><BarChart3 size={16} /> Web Analytics</button>
           {import.meta.env.DEV && import.meta.env.VITE_JDQ_ECONOMY_LAB === 'true' &&
@@ -796,6 +814,7 @@ export function App() {
             ))}
           </div>
         )}
+        {activeTab === 'affiliates' && token && <AffiliateReviewCenter token={token} apiBase={API_BASE} />}
         {activeTab === 'analytics' && <WebAnalyticsDashboard token={token} onUnauthorized={handleLogout} />}
         {activeTab === 'juanchoice' && <JuanChoiceAdmin token={token} onUnauthorized={handleLogout} />}
         {activeTab === 'economyLab' && import.meta.env.DEV && import.meta.env.VITE_JDQ_ECONOMY_LAB === 'true' && token &&
