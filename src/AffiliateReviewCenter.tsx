@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ApiError, apiFetch } from './api/client';
 import { 
   Building2, 
   CheckCircle2, 
@@ -22,6 +23,7 @@ interface AffiliateApplication {
   business_name: string;
   category: string;
   municipality: string;
+  business_province?: string;
   business_address?: string;
   contact_name: string;
   contact_email: string;
@@ -49,11 +51,10 @@ interface AffiliateApplication {
 }
 
 interface AffiliateReviewCenterProps {
-  token: string;
-  apiBase: string;
+  token?: string | null;
 }
 
-export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterProps) {
+export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
   const [applications, setApplications] = useState<AffiliateApplication[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,18 +76,12 @@ export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterP
     try {
       setLoading(true);
       setError(null);
-      const url = statusFilter === 'all' 
-        ? `${apiBase}/admin/affiliate/applications`
-        : `${apiBase}/admin/affiliate/applications?status=${statusFilter}`;
+      const path = statusFilter === 'all' 
+        ? '/admin/affiliate/applications'
+        : `/admin/affiliate/applications?status=${statusFilter}`;
       
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || 'Failed to load affiliate applications');
-      }
-      setApplications(data.data);
+      const data = await apiFetch<AffiliateApplication[]>(path, { token });
+      setApplications(data);
     } catch (err: any) {
       setError(err.message || 'Unable to connect to server');
     } finally {
@@ -108,13 +103,8 @@ export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterP
     // Fetch full audit history
     try {
       setDetailLoading(true);
-      const res = await fetch(`${apiBase}/admin/affiliate/applications/${app.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSelectedApp(data.data);
-      }
+      const detail = await apiFetch<AffiliateApplication>(`/admin/affiliate/applications/${app.id}`, { token });
+      setSelectedApp(detail);
     } catch {
       // fallback to current row
     } finally {
@@ -138,31 +128,34 @@ export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterP
       setSubmittingDecision(true);
       setDecisionError(null);
 
-      const res = await fetch(`${apiBase}/admin/affiliate/applications/${selectedApp.id}`, {
+      const data = await apiFetch<AffiliateApplication>(`/admin/affiliate/applications/${selectedApp.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
+        token,
+        body: {
           status: decisionAction,
           reviewer_notes: internalNotes.trim() || undefined,
           applicant_feedback: applicantFeedback.trim() || undefined,
           expected_version: selectedApp.version,
-        })
+        },
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || 'Failed to update application review');
-      }
-
       // Update local listing
-      setApplications(prev => prev.map(a => a.id === selectedApp.id ? data.data : a));
+      setApplications(prev => prev.map(a => a.id === selectedApp.id ? data : a));
       setSelectedApp(null);
       setDecisionAction(null);
     } catch (err: any) {
-      setDecisionError(err.message || 'Review submission failed');
+      if (err instanceof ApiError && err.status === 409) {
+        setDecisionError('This application was modified by another reviewer or the applicant. The latest revision was reloaded; review it before deciding again.');
+        void fetchApplications();
+        try {
+          const fresh = await apiFetch<AffiliateApplication>(`/admin/affiliate/applications/${selectedApp.id}`, { token });
+          setSelectedApp(fresh);
+        } catch {
+          // Keep the current view; the message still tells the operator to reload.
+        }
+      } else {
+        setDecisionError(err.message || 'Review submission failed');
+      }
     } finally {
       setSubmittingDecision(false);
     }
@@ -204,7 +197,7 @@ export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterP
             <Building2 size={24} color="#2D6A4F" /> Merchant Affiliate Applications
           </h2>
           <p style={{ margin: '4px 0 0 0', color: '#666', fontSize: '14px' }}>
-            Review local Pangasinan tourism businesses, request adjustments, and provision verified merchant workspaces.
+            Review local tourism businesses, request adjustments, and provision verified merchant workspaces.
           </p>
         </div>
         <button
@@ -384,7 +377,7 @@ export function AffiliateReviewCenter({ token, apiBase }: AffiliateReviewCenterP
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
               <div style={{ background: '#fbf9f5', padding: '12px', borderRadius: '8px', border: '1px solid #ebdccb' }}>
                 <span style={{ fontSize: '11px', color: '#888', fontWeight: 600 }}>LOCATION & CATEGORY</span>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#333', marginTop: '4px' }}>{selectedApp.municipality}, Pangasinan</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#333', marginTop: '4px' }}>{selectedApp.municipality}, {selectedApp.business_province || 'Pangasinan'}</div>
                 <div style={{ fontSize: '12px', color: '#666' }}>Category: {selectedApp.category}</div>
                 {selectedApp.business_address && (
                   <div style={{ fontSize: '12px', color: '#555', marginTop: '4px' }}>Address: {selectedApp.business_address}</div>

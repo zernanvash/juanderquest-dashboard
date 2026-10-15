@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MonthlyScheduleAdmin } from './MonthlyScheduleAdmin';
 import { JuanChoicePromotionReview } from './JuanChoicePromotionReview';
+import { apiFetch, isAuthError } from './api/client';
 
 type Campaign = { id:string;slug:string;region:string;theme:string;status:string;opens_at:string;closes_at:string;is_test:boolean;candidate_count:number;ballot_count:number };
 type Candidate = { id:string;spot_id:string;spot_name:string;municipality:string;status:'eligible'|'suspended';spot_status:string;crowd_capacity_band:string;recommendation_suppressed:boolean;votes:number };
 type Detail = {campaign:Campaign;candidates:Candidate[];audit:{action:string;reason:string|null;created_at:string}[];result:{valid_ballots:number;co_winner_ids:string[]}|null};
 type Spot = {id:string;name:string;municipality:string;status:string;recommendation_suppressed?:boolean;is_test?:boolean};
-const base='/api/v1/juanchoice/admin';
 
-export function JuanChoiceAdmin({token,onUnauthorized}:{token:string;onUnauthorized:()=>void}) {
+export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUnauthorized?:()=>void}) {
   const [items,setItems]=useState<Campaign[]>([]);
   const [selected,setSelected]=useState<string|null>(null);
   const [detail,setDetail]=useState<Detail|null>(null);
@@ -20,12 +20,13 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token:string;onUnauthori
   const [error,setError]=useState(''); const [notice,setNotice]=useState('');
   const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(false);
 
-  const call=useCallback(async(path:string,init:RequestInit={})=>{
-    const response=await fetch(`${base}${path}`,{...init,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(init.headers||{})}});
-    const data=await response.json().catch(()=>({}));
-    if(response.status===401||response.status===403){onUnauthorized();throw new Error('Administrator session expired.');}
-    if(!response.ok||!data.success)throw new Error(data.error?.message||data.error?.code||'Request failed.');
-    return data.data;
+  const call=useCallback(async(path:string,init:{method?:string;body?:unknown}={}):Promise<any>=>{
+    try {
+      return await apiFetch(`/juanchoice/admin${path}`,{...init,token});
+    } catch (cause) {
+      if (isAuthError(cause)) { onUnauthorized?.(); throw new Error('Administrator session expired.'); }
+      throw cause;
+    }
   },[token,onUnauthorized]);
 
   const load=useCallback(async()=>{
@@ -43,7 +44,7 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token:string;onUnauthori
   },[selected,call]);
   useEffect(()=>{
     const controller=new AbortController();
-    void fetch('/api/v1/admin/spots',{signal:controller.signal,headers:{Authorization:`Bearer ${token}`}}).then(response=>response.json()).then(data=>{if(!controller.signal.aborted&&data.success)setSpots(data.data);}).catch(()=>{});
+    void apiFetch<Spot[]>('/admin/spots',{signal:controller.signal,token}).then(data=>{if(!controller.signal.aborted)setSpots(data);}).catch(()=>{});
     return()=>controller.abort();
   },[token]);
   const refresh=async(id?:string)=>{
@@ -53,7 +54,7 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token:string;onUnauthori
   };
   const mutate=async(label:string,path:string,body?:unknown,method='POST')=>{
     if(busy)return;setBusy(true);setError('');setNotice('');
-    try{const result=await call(path,{method,body:body===undefined?undefined:JSON.stringify(body)});await refresh(result?.id??selected??undefined);setNotice(`${label} saved.`);}
+    try{const result=await call(path,{method,body});await refresh(result?.id??selected??undefined);setNotice(`${label} saved.`);}
     catch(err){setError(err instanceof Error?err.message:`${label} failed.`);}
     finally{setBusy(false);}
   };

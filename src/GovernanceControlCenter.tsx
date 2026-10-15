@@ -4,6 +4,7 @@ import {
   History, LockKeyhole, PauseCircle, PlayCircle, RefreshCw, Scale, ShieldCheck,
   Store, Users, Vote, WalletCards, XCircle,
 } from 'lucide-react';
+import { apiFetch, isAuthError } from './api/client';
 
 type GovernanceState =
   | 'draft' | 'screening' | 'voting' | 'approved' | 'rejected' | 'expired'
@@ -108,11 +109,11 @@ interface AuditEvent {
 }
 
 interface Props {
-  token: string;
-  onUnauthorized: () => void;
+  token?: string | null;
+  onUnauthorized?: () => void;
+  readOnly?: boolean;
 }
 
-const API_BASE = '/api/v1';
 const jdq = (mjdq = 0) => `${(mjdq / 1000).toLocaleString(undefined, { maximumFractionDigits: 3 })} JDQ`;
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 const when = (value?: string) => value ? new Date(value).toLocaleString() : 'Not scheduled';
@@ -127,7 +128,7 @@ const card: React.CSSProperties = {
   background: '#fff', border: '1px solid rgba(213,196,172,.55)', borderRadius: 14, padding: 18,
 };
 
-export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
+export function GovernanceControlCenter({ token, onUnauthorized, readOnly = false }: Props) {
   const [section, setSection] = useState<'overview' | 'proposals' | 'tokenomics' | 'ledger' | 'audit' | 'controls'>('overview');
   const [overview, setOverview] = useState<Overview | null>(null);
   const [tokenomics, setTokenomics] = useState<Tokenomics | null>(null);
@@ -141,18 +142,16 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
   const [mutationError, setMutationError] = useState('');
   const [ledgerFilter, setLedgerFilter] = useState('');
 
-  const request = useCallback(async (path: string, init?: RequestInit) => {
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
-    });
-    if (response.status === 401 || response.status === 403) {
-      onUnauthorized();
-      throw new Error('Administrator session expired.');
+  const request = useCallback(async (path: string, init: { method?: string; body?: unknown } = {}): Promise<any> => {
+    try {
+      return await apiFetch(path, { ...init, token });
+    } catch (cause) {
+      if (isAuthError(cause)) {
+        onUnauthorized?.();
+        throw new Error('Administrator session expired.');
+      }
+      throw cause;
     }
-    const payload = await response.json();
-    if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Governance request failed.');
-    return payload.data;
   }, [token, onUnauthorized]);
 
   const refresh = useCallback(async () => {
@@ -193,7 +192,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
       setMutation(true); setMutationError('');
       await request(`/admin/governance/proposals/${proposal.id}/screen`, {
         method: 'POST',
-        body: JSON.stringify({ decision, reason, evidence_reference: evidence, checklist_complete: decision === 'approve' }),
+        body: { decision, reason, evidence_reference: evidence, checklist_complete: decision === 'approve' },
       });
       await refresh();
     } catch (err) {
@@ -207,7 +206,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
     try {
       setMutation(true); setMutationError('');
       await request(`/admin/governance/proposals/${proposal.id}/transition`, {
-        method: 'POST', body: JSON.stringify({ action, force }),
+        method: 'POST', body: { action, force },
       });
       await refresh();
     } catch (err) {
@@ -225,7 +224,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
     try {
       setMutation(true); setMutationError('');
       await request(`/admin/governance/proposals/${proposal.id}/resolve`, {
-        method: 'POST', body: JSON.stringify({ release_percent: Number(release), bond_action: bond, reason: reason.trim(), evidence_reference: evidence.trim() }),
+        method: 'POST', body: { release_percent: Number(release), bond_action: bond, reason: reason.trim(), evidence_reference: evidence.trim() },
       });
       await refresh();
     } catch (err) {
@@ -241,7 +240,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
     try {
       setMutation(true); setMutationError('');
       await request('/admin/governance/controls', {
-        method: 'PUT', body: JSON.stringify({ [key]: nextValue, reason }),
+        method: 'PUT', body: { [key]: nextValue, reason },
       });
       await refresh();
     } catch (err) {
@@ -257,14 +256,14 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
 
   if (loading && !overview) return <div style={card}>Loading governance control center…</div>;
 
-  const nav = [
+  const nav = ([
     ['overview', BarChart3, 'Overview'],
     ['proposals', Vote, 'Proposals'],
     ['tokenomics', Coins, 'Tokenomics'],
     ['ledger', WalletCards, 'Ledger'],
     ['audit', History, 'Audit'],
     ['controls', ShieldCheck, 'Risk Controls'],
-  ] as const;
+  ] as const).filter(([id]) => !readOnly || id !== 'controls');
 
   return (
     <div>
@@ -277,6 +276,11 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
             <p style={{ fontSize: 12, color: '#514532', marginTop: 5, maxWidth: 760 }}>
               Off-chain prototype ledger. Values below are simulated JDQ—not blockchain balances. Every financial control and decision is audited.
             </p>
+            {readOnly ? (
+              <p style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 6 }}>
+                Read-only archive. JuanChoice is the only active voting engine; legacy governance mutations are disabled in this workspace.
+              </p>
+            ) : null}
           </div>
           <button onClick={() => void refresh()} disabled={loading} className="gov-button secondary">
             <RefreshCw size={15} /> {loading ? 'Refreshing…' : 'Refresh'}
@@ -363,7 +367,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
           </section>
           <aside style={card}>
             {!selected ? <p style={{ color: '#837560' }}>Select a proposal to inspect all governance terms and actions.</p> : (
-              <ProposalInspector proposal={selected} onScreen={screen} onTransition={transition} onResolve={resolveDispute} disabled={mutation} />
+              <ProposalInspector proposal={selected} onScreen={screen} onTransition={transition} onResolve={resolveDispute} disabled={mutation} readOnly={readOnly} />
             )}
           </aside>
         </div>
@@ -456,7 +460,7 @@ export function GovernanceControlCenter({ token, onUnauthorized }: Props) {
         </section>
       )}
 
-      {section === 'controls' && overview && (
+      {section === 'controls' && overview && !readOnly && (
         <div className="gov-two-column">
           <section style={card}>
             <h3 className="gov-section-title"><ShieldCheck size={18} /> Emergency pause controls</h3>
@@ -674,13 +678,14 @@ function LedgerActivityChart({ ledger }: { ledger: LedgerEntry[] }) {
 }
 
 function ProposalInspector({
-  proposal, onScreen, onTransition, onResolve, disabled,
+  proposal, onScreen, onTransition, onResolve, disabled, readOnly = false,
 }: {
   proposal: Proposal;
   onScreen: (proposal: Proposal, decision: 'approve' | 'reject') => void;
   onTransition: (proposal: Proposal, action: string, force?: boolean) => void;
   onResolve: (proposal: Proposal) => void;
   disabled: boolean;
+  readOnly?: boolean;
 }) {
   const turnout = proposal.eligible_voter_snapshot ? proposal.votes / proposal.eligible_voter_snapshot : 0;
   return (
@@ -712,6 +717,7 @@ function ProposalInspector({
         <p className="gov-muted">{proposal.screening_reason}</p>
         <p className="gov-muted">Evidence: {proposal.evidence_reference}</p>
       </>}
+      {!readOnly && (
       <div className="gov-actions">
         {proposal.state === 'screening' && <>
           <button disabled={disabled} className="gov-button success" onClick={() => onScreen(proposal, 'approve')}><CheckCircle2 size={15} /> Approve screening</button>
@@ -728,6 +734,7 @@ function ProposalInspector({
         {proposal.state === 'disputed' && <button disabled={disabled} className="gov-button success" onClick={() => onResolve(proposal)}><Scale size={15} /> Resolve dispute</button>}
         {proposal.state === 'payout_pending' && <button disabled={disabled} className="gov-button success" onClick={() => onTransition(proposal, 'finalize_payout')}><Coins size={15} /> Release locked payout</button>}
       </div>
+      )}
     </div>
   );
 }

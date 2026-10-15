@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { ApiError, apiFetch, isAuthError } from './api/client';
 
 export type AssessmentDecision = 'cleared' | 'restricted';
 
@@ -26,9 +27,9 @@ export interface JuanChoicePromotionReviewProps {
   campaignId: string;
   candidateId: string;
   candidateName: string;
-  token: string;
+  token?: string | null;
   isQaCampaign: boolean;
-  onUnauthorized: () => void;
+  onUnauthorized?: () => void;
 }
 
 function pad2(n: number): string {
@@ -106,30 +107,21 @@ export function JuanChoicePromotionReview({
     setLoading(true);
     setFetchError('');
     try {
-      const res = await fetch(
-        `/api/v1/juanchoice/admin/campaigns/${encodeURIComponent(campaignId)}/candidates/${encodeURIComponent(candidateId)}/promotion-assessment`,
-        {
-          signal,
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
+      const json = await apiFetch<CandidatePromotionAssessmentResponse>(
+        `/juanchoice/admin/campaigns/${encodeURIComponent(campaignId)}/candidates/${encodeURIComponent(candidateId)}/promotion-assessment`,
+        { signal, token }
       );
-      if (res.status === 401 || res.status === 403) {
-        onUnauthorized();
-        throw new Error('Administrator session expired.');
-      }
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || json.error?.code || 'Failed to fetch promotion review.');
-      }
-      setData(json.data);
+      setData(json);
       return true;
     } catch (err: unknown) {
       if (signal?.aborted) return false;
       // Stale details must be hidden on error
       setData(null);
+      if (isAuthError(err)) {
+        onUnauthorized?.();
+        setFetchError('Administrator session expired.');
+        return false;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to fetch promotion review.';
       setFetchError(msg);
       return false;
@@ -204,31 +196,26 @@ export function JuanChoicePromotionReview({
     }
 
     try {
-      const res = await fetch(
-        `/api/v1/juanchoice/admin/campaigns/${encodeURIComponent(campaignId)}/candidates/${encodeURIComponent(candidateId)}/promotion-assessment`,
+      await apiFetch(
+        `/juanchoice/admin/campaigns/${encodeURIComponent(campaignId)}/candidates/${encodeURIComponent(candidateId)}/promotion-assessment`,
         {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+          token,
+          body: {
             decision,
             reason: trimmedReason,
             valid_until: isoString,
             expected_revision: expectedRevision,
-          }),
+          },
         }
       );
 
-      if (res.status === 401 || res.status === 403) {
-        onUnauthorized();
-        throw new Error('Administrator session expired.');
-      }
-
-      const json = await res.json().catch(() => ({}));
-
-      if (res.status === 409) {
+      // Success: reload assessment and close form
+      setShowForm(false);
+      setReason('');
+      await fetchAssessment();
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409) {
         // Refresh assessment state while preserving draft
         const refreshed = await fetchAssessment();
         if (refreshed) {
@@ -238,16 +225,11 @@ export function JuanChoicePromotionReview({
         }
         return;
       }
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || json.error?.code || 'Failed to save review.');
+      if (isAuthError(err)) {
+        onUnauthorized?.();
+        setSubmitError('Administrator session expired.');
+        return;
       }
-
-      // Success: reload assessment and close form
-      setShowForm(false);
-      setReason('');
-      await fetchAssessment();
-    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save review.';
       setSubmitError(msg);
     } finally {

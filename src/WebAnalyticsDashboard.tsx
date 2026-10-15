@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { BarChart3, TrendingUp, Users, MousePointerClick, Eye, Compass, Calendar, ArrowUpRight } from 'lucide-react';
+import { apiFetch, isAuthError } from './api/client';
 
 interface Summary {
   days: number;
@@ -15,8 +16,8 @@ export function WebAnalyticsDashboard({
   token,
   onUnauthorized,
 }: {
-  token: string;
-  onUnauthorized: () => void;
+  token?: string | null;
+  onUnauthorized?: () => void;
 }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<Summary | null>(null);
@@ -28,23 +29,17 @@ export function WebAnalyticsDashboard({
     const controller = new AbortController();
     setLoading(true);
     setError('');
-    fetch(`/api/v1/admin/analytics?days=${days}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (res.status === 401 || res.status === 403) {
-          onUnauthorized();
-          return;
-        }
-        const body = await res.json();
-        if (!res.ok || !body.success) throw new Error(body.error?.message || 'Unable to load analytics.');
-        setData(body.data);
+    apiFetch<Summary>(`/admin/analytics?days=${days}`, { token, signal: controller.signal })
+      .then((summary) => {
+        setData(summary);
       })
       .catch((reason) => {
-        if (reason.name !== 'AbortError') {
-          setError(reason instanceof Error ? reason.message : 'Unable to load analytics.');
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        if (isAuthError(reason)) {
+          onUnauthorized?.();
+          return;
         }
+        setError(reason instanceof Error ? reason.message : 'Unable to load analytics.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);

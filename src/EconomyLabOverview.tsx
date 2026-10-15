@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { apiFetch, isAuthError } from './api/client';
 
 const poolId = 'lab-economy-pool';
 
@@ -11,7 +12,7 @@ type Reconciliation = { pilotAccountDrift: unknown[]; unbalancedLegacyGroups: un
 type Appeal = { id: string; reservation_id: string; original_reviewer_id: string; amount_minor: string };
 type Purchase = { transaction_id: string; cosmetic_id: string; amount_minor: string; refunded_at: string | null };
 
-export function EconomyLabOverview({ token, onUnauthorized }: { token: string; onUnauthorized: () => void }) {
+export function EconomyLabOverview({ token, onUnauthorized }: { token?: string | null; onUnauthorized?: () => void }) {
   const [summary, setSummary] = useState<PoolSummary | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
@@ -35,12 +36,12 @@ export function EconomyLabOverview({ token, onUnauthorized }: { token: string; o
         '/api/v1/admin/economy/cosmetic-purchases',
       ];
       const results = await Promise.all(paths.map(async path => {
-        const response = await fetch(path, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
-        if (response.status === 401 || response.status === 403) { onUnauthorized(); throw new Error('Administrator authorization expired.'); }
-        if (!response.ok) throw new Error(`Local economy observation unavailable (${response.status}).`);
-        const payload = await response.json();
-        if (!payload.success) throw new Error('Local economy observation unavailable.');
-        return payload.data;
+        try {
+          return await apiFetch(path, { token, cache: 'no-store' });
+        } catch (cause) {
+          if (isAuthError(cause)) { onUnauthorized?.(); throw new Error('Administrator authorization expired.'); }
+          throw cause;
+        }
       }));
       setSummary(results[0] as PoolSummary);
       setQueue(results[1] as QueueItem[]);
@@ -62,13 +63,13 @@ export function EconomyLabOverview({ token, onUnauthorized }: { token: string; o
     if (decisionReason.trim().length < 10) { setError('A decision reason of at least 10 characters is required.'); return false; }
     setActionBusy(true); setError(''); setNotice('');
     try {
-      const response = await fetch(path, { method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
-          ...(idempotencyKey ? { 'x-idempotency-key': idempotencyKey } : {}) },
-        body: JSON.stringify(body) });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) throw new Error(payload.error?.code || `Decision failed (${response.status}).`);
-      setNotice(`Committed local simulation receipt ${payload.data?.transactionId || payload.data?.submission?.id || payload.data?.id || ''}.`);
+      const result = await apiFetch<{ transactionId?: string; submission?: { id?: string }; id?: string }>(path, {
+        method: 'POST',
+        token,
+        headers: idempotencyKey ? { 'x-idempotency-key': idempotencyKey } : undefined,
+        body,
+      });
+      setNotice(`Committed local simulation receipt ${result?.transactionId || result?.submission?.id || result?.id || ''}.`);
       await refresh();
       return true;
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Decision unavailable.'); return false; }
