@@ -322,6 +322,29 @@ describe('admin authentication and routed shell', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/queue was refreshed/i);
   });
 
+  it('shows the duplicate-completion conflict returned by the proof API', async () => {
+    window.history.replaceState(null, '', '/#/submissions');
+    const fetchMock = adminFetchMock({
+      '/api/v1/admin/submissions?status=pending': jsonResponse({ success: true, data: [{ ...submission, is_test: false }] }),
+    });
+    const baseImplementation = fetchMock.getMockImplementation()! as (url: string, init?: RequestInit) => Promise<unknown>;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/v1/admin/submissions/submission-1' && init?.method === 'PATCH') {
+        return Promise.resolve(jsonResponse({ success: false, error: {
+          code: 'ALREADY_COMPLETED',
+          message: 'This traveler already has an approved proof for this quest. Reject this one as a duplicate.',
+        } }, 409));
+      }
+      return baseImplementation(url, init);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /^approve$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/already has an approved proof/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/queue was refreshed/i);
+  });
+
   it('renders destination reports as a read-only page', async () => {
     window.history.replaceState(null, '', '/#/spot-reports');
     vi.stubGlobal('fetch', adminFetchMock({
