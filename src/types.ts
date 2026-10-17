@@ -261,3 +261,38 @@ export interface SystemStatus {
   feature_flags: Record<string, boolean>;
   deployment_note: string;
 }
+
+export interface PlazaAdminComment {
+  id: string;
+  body: string;
+  author_id: string;
+  author_display_name: string;
+  created_at: string;
+  hidden_at: string | null;
+  hidden_by: string | null;
+  report_count: number;
+}
+
+export interface PlazaAdminActivity {
+  id: string;
+  verb: string;
+  subject_title: string;
+  subject_href: string;
+}
+
+export interface PlazaAdminReport {
+  reporter_id: string;
+  reporter_display_name: string;
+  reason: string;
+  note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution: string | null;
+}
+
+export interface PlazaReportGroup {
+  comment: PlazaAdminComment;
+  activity: PlazaAdminActivity;
+  reports: PlazaAdminReport[];
+}
