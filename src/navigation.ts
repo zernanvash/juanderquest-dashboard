@@ -5,6 +5,7 @@ import {
   BookOpen,
   Building2,
   ClipboardCheck,
+  Coins,
   Compass,
   Flag,
   FlaskConical,
@@ -125,6 +126,19 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Merchant vouchers',
         icon: Ticket,
         description: 'Current voucher offers available to travelers.',
+        available: true,
+      },
+    ],
+  },
+  {
+    id: 'economy-operations',
+    label: 'Economy operations',
+    items: [
+      {
+        path: '/economy/funding',
+        label: 'Quest funding',
+        icon: Coins,
+        description: 'Inspect simulated quest funding, merchant point credits and reconciliation; close rounds safely.',
         available: true,
       },
     ],
