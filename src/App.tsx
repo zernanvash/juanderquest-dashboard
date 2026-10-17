@@ -21,6 +21,7 @@ import { GovernancePage } from './pages/GovernancePage';
 import { EconomyLabPage } from './pages/EconomyLabPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SystemStatusPage } from './pages/SystemStatusPage';
+import { FundingPage } from './pages/FundingPage';
 
 export function App() {
   return (
@@ -82,6 +83,8 @@ function RouteOutlet() {
       return <MerchantsPage />;
     case '/partners/vouchers':
       return <VouchersPage />;
+    case '/economy/funding':
+      return <FundingPage />;
     case '/insights/analytics':
       return <AnalyticsPage />;
     case '/insights/governance':
