@@ -10,6 +10,7 @@ import { SubmissionsPage } from './pages/SubmissionsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
+import { PlazaModerationPage } from './pages/PlazaModerationPage';
 import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
 import { VouchersPage } from './pages/VouchersPage';
@@ -70,6 +71,8 @@ function RouteOutlet() {
       return <QuestsPage />;
     case '/spot-reports':
       return <SpotReportsPage />;
+    case '/plaza-moderation':
+      return <PlazaModerationPage />;
     case '/quizzes':
       return <QuizzesPage />;
     case '/juanchoice':
