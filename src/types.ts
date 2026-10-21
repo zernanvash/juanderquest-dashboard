@@ -16,6 +16,45 @@ export interface Submission {
   is_test?: boolean;
 }
 
+export interface QuestStepEvidence {
+  id: string;
+  step_order: number;
+  task_key?: string | null;
+  title: string;
+  description: string;
+  checkpoint_type: 'location' | 'qr' | 'photo' | 'ar' | 'action';
+  required: boolean;
+  status: 'not_started' | 'ready' | 'pending_review' | 'verified' | 'needs_changes';
+  evidence_payload?: any;
+  failed_tries: number;
+  first_try_at?: string | null;
+  submitted_at?: string | null;
+  needs_changes_reason?: string | null;
+  rejection_reason?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  verified_at?: string | null;
+}
+
+export interface QuestAttempt {
+  id: string;
+  quest_id: string;
+  user_id: string;
+  status: 'in_progress' | 'submitted' | 'completed' | 'abandoned';
+  current_step: number;
+  total_steps: number;
+  verified_steps: number;
+  step_order_mode: 'sequential' | 'any';
+  quest_title?: string;
+  quest_location?: string;
+  quest_author_id?: string;
+  traveler_name?: string;
+  review_notes?: string;
+  created_at: string;
+  completed_at?: string | null;
+  steps?: QuestStepEvidence[];
+}
+
 export interface Quest {
   id: string;
   title: string;
