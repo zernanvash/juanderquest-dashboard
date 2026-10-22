@@ -120,3 +120,36 @@ export const getBadgeMinting = (signal?: AbortSignal) =>
 
 export const retryBadgeMint = (id: string) =>
   apiFetch<{ id: string; status: string }>(`/admin/chain/badges/${encodeURIComponent(id)}/retry`, { method: 'POST' });
+
+export type BadgeLedgerState = 'pending_wallet' | 'queued' | 'minting' | 'on_chain' | 'failed' | 'revoked';
+
+export interface BadgeLedgerEntry {
+  awardId: string;
+  title: string;
+  track: string;
+  awardedAt: string;
+  traveler: { id: string; name: string; handle: string | null };
+  wallet: string | null;
+  state: BadgeLedgerState;
+  commandId: string | null;
+  attempts: number;
+  lastError: string | null;
+  updatedAt: string;
+  tokenId: string | null;
+  txUrl: string | null;
+  tokenUrl: string | null;
+}
+
+export interface BadgeLedger {
+  totals: Record<BadgeLedgerState, number>;
+  total: number;
+  entries: BadgeLedgerEntry[];
+}
+
+export const getBadgeLedger = (params: { state?: BadgeLedgerState | ''; q?: string } = {}, signal?: AbortSignal) => {
+  const search = new URLSearchParams();
+  if (params.state) search.set('state', params.state);
+  if (params.q?.trim()) search.set('q', params.q.trim());
+  const qs = search.toString();
+  return apiFetch<BadgeLedger>(`/admin/chain/badges/ledger${qs ? `?${qs}` : ''}`, { signal });
+};

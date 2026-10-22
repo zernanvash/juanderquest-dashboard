@@ -53,6 +53,7 @@ describe('ChainPage', () => {
     api.mockImplementation(async (path: string) => {
       if (path.startsWith('/admin/chain/overview')) return overview() as never;
       if (path.startsWith('/admin/chain/audit')) return [] as never;
+      if (path.startsWith('/admin/chain/badges/ledger')) return { totals: { pending_wallet: 0, queued: 0, minting: 0, on_chain: 0, failed: 0, revoked: 0 }, total: 0, entries: [] } as never;
       if (path === '/admin/chain/badges') return { minter: { enabled: false, ready: false, error: null }, counts: { waitingForWallet: 0, queued: 0, minting: 0, onChain: 0, failed: 0 }, recent: [] } as never;
       if (path === '/admin/chain/wallets') return { id: 'new', address: '0x' } as never;
       return {} as never;
