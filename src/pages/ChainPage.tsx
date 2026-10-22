@@ -5,6 +5,7 @@ import {
   Server, ShieldAlert, ShieldCheck, Wallet as WalletIcon,
 } from 'lucide-react';
 import { PageHeader } from '../components/PageState';
+import { BadgeMintingPanel } from '../components/BadgeMintingPanel';
 import { describeError } from '../utils/errors';
 import {
   createChainWallet, getChainAudit, getChainOverview, updateChainWallet,
@@ -228,6 +229,8 @@ export function ChainPage() {
               {overview.contracts.map((c) => <ContractCard key={c.address} contract={c} busy={busy} onAsk={ask} />)}
             </div>
           </section>
+
+          <BadgeMintingPanel />
 
           <section className="chain-section" aria-label="Audit log">
             <div className="chain-section-head">

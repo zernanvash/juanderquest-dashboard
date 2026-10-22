@@ -93,3 +93,30 @@ export const createChainWallet = (body: NewChainWallet) =>
 
 export const updateChainWallet = (id: string, body: ChainWalletPatch) =>
   apiFetch<{ id: string }>(`/admin/chain/wallets/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+
+// Plan 50 — soulbound badge minting queue.
+export interface BadgeMintRow {
+  id: string;
+  status: 'queued' | 'submitted' | 'included' | 'finalized' | 'unknown' | 'failed' | 'reverted' | 'replaced';
+  title: string;
+  traveler: string;
+  recipient: string;
+  tokenId: string;
+  attempts: number;
+  lastError: string | null;
+  updatedAt: string;
+  txUrl: string | null;
+  tokenUrl: string | null;
+}
+
+export interface BadgeMinting {
+  minter: { enabled: boolean; ready: boolean; error: string | null };
+  counts: { waitingForWallet: number; queued: number; minting: number; onChain: number; failed: number };
+  recent: BadgeMintRow[];
+}
+
+export const getBadgeMinting = (signal?: AbortSignal) =>
+  apiFetch<BadgeMinting>('/admin/chain/badges', { signal });
+
+export const retryBadgeMint = (id: string) =>
+  apiFetch<{ id: string; status: string }>(`/admin/chain/badges/${encodeURIComponent(id)}/retry`, { method: 'POST' });
