@@ -1791,6 +1791,8 @@ a.chain-mono:hover { text-decoration: underline; }
 .chain-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 @media (max-width: 640px) {
+  .chain-summary { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .chain-stat { padding: 12px 14px; }
   .chain-stat-value { font-size: 17px; }
   .chain-role-group li { grid-template-columns: minmax(0, 1fr) auto; }
   .chain-role-action { grid-column: 1 / -1; justify-content: flex-start; }
