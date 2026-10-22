@@ -5,7 +5,7 @@ import { sendAdminAction } from '../chain/browserWallet';
 import { ChainPage, isLastAdmin } from './ChainPage';
 import type { ChainContract, ChainOverview } from '../api/chain';
 
-vi.mock('../api/client', () => ({ apiFetch: vi.fn() }));
+vi.mock('../api/client', async (orig) => ({ ...(await orig<typeof import('../api/client')>()), apiFetch: vi.fn() }));
 vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn(async () => 'data:image/png;base64,AAAA') } }));
 vi.mock('../chain/browserWallet', async (orig) => ({
   ...(await orig<typeof import('../chain/browserWallet')>()),
