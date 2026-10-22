@@ -62,17 +62,17 @@ describe('ChainPage', () => {
   it('shows wallets with balances, a low badge, custody and drift', async () => {
     render(<ChainPage />);
     await screen.findByText(/RPC ok/);
-    const adminRow = screen.getByTestId(`wallet-admin-${ADMIN}`);
+    const adminRow = screen.getByTestId(`wallet-${ADMIN}`);
     expect(within(adminRow).getByText('Low')).toBeInTheDocument();
     expect(within(adminRow).getByText('Server key')).toBeInTheDocument();
-    expect(within(screen.getByTestId(`wallet-recovery_admin-${OWNER}`)).getByText('No gas needed')).toBeInTheDocument();
+    expect(within(screen.getByTestId(`wallet-${OWNER}`)).getByText('No gas needed')).toBeInTheDocument();
     expect(screen.getByTestId('drift-badge')).toHaveTextContent('1 drift');
   });
 
   it('shows the top-up address and QR code', async () => {
     render(<ChainPage />);
     await screen.findByText(/RPC ok/);
-    fireEvent.click(within(screen.getByTestId(`wallet-badge_issuer-${ISSUER}`)).getByRole('button', { name: 'Top up' }));
+    fireEvent.click(within(screen.getByTestId(`wallet-${ISSUER}`)).getByRole('button', { name: 'Top up' }));
     expect(await screen.findByTestId('topup-address')).toHaveTextContent(ISSUER);
     expect(await screen.findByAltText(`QR code for ${ISSUER}`)).toBeInTheDocument();
   });

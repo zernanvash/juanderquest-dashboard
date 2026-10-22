@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
-import { Copy, ExternalLink, Link2, PauseCircle, PlayCircle, Plus, RefreshCw, ShieldAlert, Wallet } from 'lucide-react';
+import {
+  AlertTriangle, CheckCircle2, Copy, ExternalLink, HelpCircle, History, MinusCircle, PauseCircle, PlayCircle, Plus, RefreshCw,
+  Server, ShieldAlert, ShieldCheck, Wallet as WalletIcon,
+} from 'lucide-react';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import {
@@ -18,12 +21,57 @@ const ROLE_LABEL: Record<ChainWalletRole, string> = {
 };
 const CONTRACT_LABEL = { token: 'Test token (tJDQ)', distributor: 'Reward distributor', badge: 'Badge (tJDB)' } as const;
 
+const ROLE_NAME: Record<string, string> = {
+  DEFAULT_ADMIN_ROLE: 'Admin',
+  MINTER_ROLE: 'Minter',
+  SIGNER_ROLE: 'Claim signer',
+  ISSUER_ROLE: 'Badge issuer',
+};
+const AUDIT_PREVIEW = 8;
+
 export const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
+function humanize(value: string): string {
+  const spaced = value.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+const roleName = (role: string) => ROLE_NAME[role] ?? humanize(role.replace(/_ROLE$/, ''));
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function auditTone(action: string): string {
+  if (/unpause|grant|created/i.test(action)) return 'is-good';
+  if (/revoke|pause|deactivat/i.test(action)) return 'is-bad';
+  return '';
+}
 
 /** True when revoking this admin would leave the contract with no admin at all. */
 export function isLastAdmin(contract: ChainContract, row: ChainRoleRow): boolean {
   if (row.role !== 'DEFAULT_ADMIN_ROLE' || row.onChain !== true) return false;
   return contract.roles.filter((r) => r.role === 'DEFAULT_ADMIN_ROLE' && r.onChain === true).length <= 1;
+}
+
+interface WalletGroup {
+  address: string;
+  rows: ChainWallet[];
+  primary: ChainWallet;
+}
+
+/** One card per address: the owner's wallet is both recovery admin and treasury. */
+export function groupWallets(wallets: ChainWallet[]): WalletGroup[] {
+  const groups = new Map<string, WalletGroup>();
+  for (const w of wallets) {
+    const g = groups.get(w.address);
+    if (!g) groups.set(w.address, { address: w.address, rows: [w], primary: w });
+    else {
+      g.rows.push(w);
+      if (w.needsGas && !g.primary.needsGas) g.primary = w;
+    }
+  }
+  return [...groups.values()];
 }
 
 interface PendingAction {
@@ -43,6 +91,7 @@ export function ChainPage() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [txState, setTxState] = useState<{ status: 'sending' | 'waiting' | 'done' | 'failed'; hash?: string; message?: string } | null>(null);
   const [copied, setCopied] = useState('');
+  const [showAllAudit, setShowAllAudit] = useState(false);
 
   const load = useCallback(async (refresh = false, signal?: AbortSignal) => {
     try {
@@ -120,10 +169,10 @@ export function ChainPage() {
   const busy = txState?.status === 'sending' || txState?.status === 'waiting';
 
   return (
-    <div>
+    <div className="chain-page">
       <PageHeader
         title="Wallets & contracts"
-        description="Project wallets, balances and on-chain roles on the test network. Private keys are never stored or shown here; admin actions are signed by your own browser wallet."
+        description="Project wallets, balances and on-chain permissions on the test network. Private keys are never stored or shown here; admin actions are signed by your own browser wallet."
         actions={
           <>
             <button type="button" className="button-muted" onClick={() => setAdding(true)}>
@@ -155,126 +204,65 @@ export function ChainPage() {
 
       {overview ? (
         <>
-          <p className="overview-timestamp" role="status" data-testid="chain-status">
-            {overview.chain.name} (chain {overview.chain.id}) ·{' '}
-            <span className={`status-pill ${overview.chain.rpcHealthy ? 'status-approved' : 'status-rejected'}`}>
-              {overview.chain.rpcHealthy ? `RPC ok · block ${overview.chain.latestBlock?.toLocaleString()}` : 'RPC unreachable'}
-            </span>{' '}
-            · fetched {new Date(overview.fetchedAt).toLocaleTimeString()}
-          </p>
+          <ChainSummary overview={overview} busy={busy} onPause={(c, kind) => ask(c, null, kind)} />
 
-          <section className="stitch-panel" aria-label="Wallets">
-            <h2 className="section-title"><Wallet size={18} aria-hidden="true" /> Wallets</h2>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr><th>Wallet</th><th>Role</th><th>Custody</th><th>Address</th><th>Balance</th><th>Alert below</th><th /></tr>
-                </thead>
-                <tbody>
-                  {overview.wallets.map((w) => (
-                    <tr key={w.id} data-testid={`wallet-${w.role}-${w.address}`}>
-                      <td><strong>{w.label}</strong>{w.ownerName ? <small>{w.ownerName}</small> : null}</td>
-                      <td>{ROLE_LABEL[w.role]}</td>
-                      <td><span className={`status-pill ${w.custody === 'server' ? 'status-pending' : 'status-approved'}`}>{w.custody === 'server' ? 'Server key' : 'Personal wallet'}</span></td>
-                      <td className="chain-address">
-                        <a href={w.explorerUrl} target="_blank" rel="noreferrer">{shortAddress(w.address)}</a>
-                        <button type="button" className="icon-button" onClick={() => void copy(w.address)} aria-label={`Copy ${w.label} address`}>
-                          <Copy size={12} aria-hidden="true" />
-                        </button>
-                        {copied === w.address ? <small>Copied</small> : null}
-                      </td>
-                      <td className={w.low ? 'bad-text' : undefined}>
-                        {w.balancePol === null ? '—' : `${Number(w.balancePol).toFixed(4)} ${overview.chain.currency}`}
-                        {w.low ? <span className="status-pill status-rejected chain-low">Low</span> : null}
-                        {!w.needsGas ? <small>No gas needed</small> : null}
-                      </td>
-                      <td>{w.needsGas && w.lowBalancePol ? `${Number(w.lowBalancePol)} ${overview.chain.currency}` : '—'}</td>
-                      <td className="chain-row-actions">
-                        {w.needsGas ? <button type="button" className="button-muted" onClick={() => setTopUp(w)}>Top up</button> : null}
-                        <button type="button" className="button-muted" onClick={() => setEditing(w)}>Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <section className="chain-section" aria-label="Wallets">
+            <div className="chain-section-head">
+              <h2 className="chain-section-title"><WalletIcon size={18} aria-hidden="true" /> Wallets</h2>
+              <p className="chain-section-sub">Server keys pay gas for automatic actions. Personal wallets are recovery admins and only sign from MetaMask.</p>
+            </div>
+            <div className="chain-wallet-grid">
+              {groupWallets(overview.wallets).map((group) => (
+                <WalletCard key={group.address} group={group} currency={overview.chain.currency} copied={copied === group.address}
+                  onCopy={() => void copy(group.address)} onTopUp={setTopUp} onEdit={setEditing} />
+              ))}
             </div>
           </section>
 
-          {overview.contracts.map((c) => {
-            const driftCount = c.roles.filter((r) => r.drift).length;
-            return (
-              <section key={c.address} className="stitch-panel chain-contract" aria-label={CONTRACT_LABEL[c.name]}>
-                <div className="section-heading-row">
-                  <h2 className="section-title"><Link2 size={18} aria-hidden="true" /> {CONTRACT_LABEL[c.name]}</h2>
-                  <div className="chain-row-actions">
-                    {driftCount > 0 ? <span className="status-pill status-rejected" data-testid={`drift-${c.name}`}><ShieldAlert size={12} aria-hidden="true" /> {driftCount} drift</span> : <span className="status-pill status-approved">Roles as expected</span>}
-                    {c.name === 'distributor' && c.paused !== null ? (
-                      c.paused
-                        ? <button type="button" className="button-approve" disabled={busy} onClick={() => ask(c, null, 'unpause')}><PlayCircle size={14} aria-hidden="true" /> Unpause</button>
-                        : <button type="button" className="button-danger" disabled={busy} onClick={() => ask(c, null, 'pause')}><PauseCircle size={14} aria-hidden="true" /> Pause</button>
-                    ) : null}
-                  </div>
-                </div>
-                <p className="chain-contract-address">
-                  <a href={c.explorerUrl} target="_blank" rel="noreferrer">{c.address}</a>
-                  {c.name === 'distributor' && c.paused !== null ? ` · ${c.paused ? 'Paused' : 'Running'}` : ''}
-                </p>
-                <div className="table-scroll">
-                  <table className="data-table">
-                    <thead><tr><th>Role</th><th>Account</th><th>Should have it</th><th>On-chain</th><th /></tr></thead>
+          <section className="chain-section" aria-label="Contract permissions">
+            <div className="chain-section-head">
+              <h2 className="chain-section-title"><ShieldCheck size={18} aria-hidden="true" /> Contract permissions</h2>
+              <p className="chain-section-sub">What each wallet may do on each contract, read live from the chain and compared with the registry.</p>
+            </div>
+            <div className="chain-contract-grid">
+              {overview.contracts.map((c) => <ContractCard key={c.address} contract={c} busy={busy} onAsk={ask} />)}
+            </div>
+          </section>
+
+          <section className="chain-section" aria-label="Audit log">
+            <div className="chain-section-head">
+              <h2 className="chain-section-title"><History size={18} aria-hidden="true" /> Audit log</h2>
+              <p className="chain-section-sub">Registry edits and confirmed on-chain role changes, newest first.</p>
+            </div>
+            {audit.length === 0 ? <p className="chain-empty">No changes recorded yet.</p> : (
+              <div className="chain-panel">
+                <div className="chain-table-wrap">
+                  <table className="chain-table">
+                    <thead><tr><th>When</th><th>Event</th><th>Wallet</th><th>Contract</th><th>By</th><th>Tx</th></tr></thead>
                     <tbody>
-                      {c.roles.map((r) => {
-                        const last = isLastAdmin(c, r);
-                        return (
-                          <tr key={`${r.role}-${r.account}`} className={r.drift ? 'chain-drift-row' : undefined}>
-                            <td>{r.role.replace(/_/g, ' ')}</td>
-                            <td>{r.label} <small>{shortAddress(r.account)}</small></td>
-                            <td>{r.expected ? 'Yes' : 'No'}</td>
-                            <td>
-                              {r.onChain === null ? <span className="status-pill status-pending">Unknown</span>
-                                : r.onChain ? 'Yes' : 'No'}
-                              {r.drift ? <span className="status-pill status-rejected chain-low">Drift</span> : null}
-                            </td>
-                            <td className="chain-row-actions">
-                              {r.onChain === false && r.expected ? (
-                                <button type="button" className="button-approve" disabled={busy} onClick={() => ask(c, r, 'grant')}>Grant</button>
-                              ) : null}
-                              {r.onChain === true ? (
-                                <button type="button" className="button-reject" disabled={busy || last}
-                                  title={last ? 'This is the last admin of the contract; it cannot be removed.' : undefined}
-                                  onClick={() => ask(c, r, 'revoke')}>Revoke</button>
-                              ) : null}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(showAllAudit ? audit : audit.slice(0, AUDIT_PREVIEW)).map((a) => (
+                        <tr key={a.id}>
+                          <td className="chain-nowrap chain-muted">{formatWhen(a.createdAt)}</td>
+                          <td className="chain-nowrap">
+                            <span className={`chain-chip ${auditTone(a.action)}`}>{humanize(a.action)}</span>
+                            {a.source === 'registry' ? <span className="chain-muted"> registry</span> : null}
+                          </td>
+                          <td>{labelFor(a.walletAddress)}</td>
+                          <td>{labelFor(a.contractAddress)}</td>
+                          <td className="chain-muted">{a.actorName ?? labelFor(a.actorAddress)}</td>
+                          <td className="chain-nowrap">
+                            {a.txExplorerUrl ? <a className="chain-mono" href={a.txExplorerUrl} target="_blank" rel="noreferrer">{shortAddress(a.txHash ?? '')}</a> : '—'}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
-              </section>
-            );
-          })}
-
-          <section className="stitch-panel" aria-label="Audit log">
-            <h2 className="section-title">Audit log</h2>
-            {audit.length === 0 ? <p className="empty-state">No changes recorded yet.</p> : (
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead><tr><th>When</th><th>Source</th><th>Action</th><th>By</th><th>Wallet</th><th>Contract</th><th>Tx</th></tr></thead>
-                  <tbody>
-                    {audit.map((a) => (
-                      <tr key={a.id}>
-                        <td>{new Date(a.createdAt).toLocaleString()}</td>
-                        <td>{a.source === 'onchain' ? 'On-chain' : 'Registry'}</td>
-                        <td>{a.action.replace(/_/g, ' ')}</td>
-                        <td>{a.actorName ?? labelFor(a.actorAddress)}</td>
-                        <td>{labelFor(a.walletAddress)}</td>
-                        <td>{labelFor(a.contractAddress)}</td>
-                        <td>{a.txExplorerUrl ? <a href={a.txExplorerUrl} target="_blank" rel="noreferrer">{shortAddress(a.txHash ?? '')}</a> : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {audit.length > AUDIT_PREVIEW ? (
+                  <button type="button" className="chain-link-button" onClick={() => setShowAllAudit((v) => !v)}>
+                    {showAllAudit ? 'Show fewer' : `Show all ${audit.length} entries`}
+                  </button>
+                ) : null}
               </div>
             )}
           </section>
@@ -284,7 +272,7 @@ export function ChainPage() {
       {pending ? (
         <div className="modal-backdrop">
           <div className="stitch-panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="chain-confirm-title">
-            <h3 id="chain-confirm-title" className="section-title">Confirm in your wallet</h3>
+            <h3 id="chain-confirm-title" className="chain-modal-title">Confirm in your wallet</h3>
             <p className="modal-description">{pending.summary}</p>
             {pending.warning ? <p className="modal-description bad-text" role="alert">{pending.warning}</p> : null}
             <p className="modal-description">Your browser wallet (MetaMask) will ask you to sign on Polygon Amoy. It must be one of the recovery-admin wallets.</p>
@@ -303,6 +291,176 @@ export function ChainPage() {
   );
 }
 
+function ChainSummary({ overview, busy, onPause }: {
+  overview: ChainOverview;
+  busy: boolean;
+  onPause: (contract: ChainContract, kind: 'pause' | 'unpause') => void;
+}) {
+  const walletCount = groupWallets(overview.wallets).length;
+  const low = overview.wallets.filter((w) => w.low).length;
+  const roles = overview.contracts.flatMap((c) => c.roles);
+  const drift = roles.filter((r) => r.drift).length;
+  const unknown = roles.filter((r) => r.onChain === null).length;
+  const distributor = overview.contracts.find((c) => c.name === 'distributor');
+  const paused = distributor?.paused ?? null;
+  return (
+    <div className="chain-summary" data-testid="chain-status">
+      <div className="chain-stat">
+        <span className="chain-stat-label">Network</span>
+        <strong className="chain-stat-value">{overview.chain.name}</strong>
+        <span className={`chain-stat-note ${overview.chain.rpcHealthy ? 'is-good' : 'is-bad'}`} role="status">
+          <span className="chain-dot" aria-hidden="true" />
+          {overview.chain.rpcHealthy ? `RPC ok · block ${overview.chain.latestBlock?.toLocaleString()}` : 'RPC unreachable'}
+        </span>
+      </div>
+      <div className="chain-stat">
+        <span className="chain-stat-label">Wallets</span>
+        <strong className="chain-stat-value">{walletCount}</strong>
+        <span className={`chain-stat-note ${low ? 'is-bad' : 'is-good'}`}>
+          <span className="chain-dot" aria-hidden="true" />
+          {low ? `${low} low on gas` : 'All funded'}
+        </span>
+      </div>
+      <div className="chain-stat">
+        <span className="chain-stat-label">Permissions</span>
+        <strong className="chain-stat-value">{drift ? `${drift} drift` : 'As expected'}</strong>
+        <span className={`chain-stat-note ${drift ? 'is-bad' : unknown ? 'is-warn' : 'is-good'}`}>
+          <span className="chain-dot" aria-hidden="true" />
+          {unknown ? `${unknown} could not be read` : `${roles.length} checks on ${overview.contracts.length} contracts`}
+        </span>
+      </div>
+      <div className="chain-stat">
+        <span className="chain-stat-label">Reward claims</span>
+        <strong className="chain-stat-value">{paused === null ? 'Unknown' : paused ? 'Paused' : 'Running'}</strong>
+        {distributor && paused !== null ? (
+          paused
+            ? <button type="button" className="chain-small-button is-good" disabled={busy} onClick={() => onPause(distributor, 'unpause')}><PlayCircle size={14} aria-hidden="true" /> Unpause</button>
+            : <button type="button" className="chain-small-button is-ghost-bad" disabled={busy} onClick={() => onPause(distributor, 'pause')}><PauseCircle size={14} aria-hidden="true" /> Pause</button>
+        ) : <span className="chain-stat-note">Fetched {new Date(overview.fetchedAt).toLocaleTimeString()}</span>}
+      </div>
+    </div>
+  );
+}
+
+function WalletCard({ group, currency, copied, onCopy, onTopUp, onEdit }: {
+  group: WalletGroup;
+  currency: string;
+  copied: boolean;
+  onCopy: () => void;
+  onTopUp: (w: ChainWallet) => void;
+  onEdit: (w: ChainWallet) => void;
+}) {
+  const w = group.primary;
+  const server = w.custody === 'server';
+  const several = group.rows.length > 1;
+  return (
+    <article className={`chain-wallet ${w.low ? 'is-low' : ''}`} data-testid={`wallet-${group.address}`}>
+      <header className="chain-wallet-head">
+        <span className={`chain-avatar ${server ? 'is-server' : 'is-personal'}`} aria-hidden="true">
+          {server ? <Server size={16} /> : <WalletIcon size={16} />}
+        </span>
+        <div className="chain-wallet-name">
+          <strong>{w.label}</strong>
+          <span>{w.ownerName ?? (server ? 'Held by the API server' : 'Personal wallet')}</span>
+        </div>
+      </header>
+      <div className="chain-chips">
+        {group.rows.map((r) => <span key={r.id} className="chain-chip">{ROLE_LABEL[r.role]}</span>)}
+        <span className={`chain-chip ${server ? 'is-warn' : 'is-good'}`}>{server ? 'Server key' : 'Personal wallet'}</span>
+      </div>
+      <div className="chain-balance">
+        <span className="chain-balance-value">{w.balancePol === null ? '—' : Number(w.balancePol).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+        <span className="chain-balance-unit">{currency}</span>
+        {w.low ? <span className="chain-chip is-bad">Low</span> : null}
+      </div>
+      <p className="chain-wallet-note">
+        {w.needsGas ? `Alert below ${Number(w.lowBalancePol ?? 0)} ${currency}` : 'No gas needed'}
+      </p>
+      <div className="chain-address-row">
+        <a className="chain-mono" href={w.explorerUrl} target="_blank" rel="noreferrer" title={group.address}>
+          {shortAddress(group.address)} <ExternalLink size={11} aria-hidden="true" />
+        </a>
+        <button type="button" className="chain-icon-button" onClick={onCopy} aria-label={`Copy ${w.label} address`}>
+          <Copy size={13} aria-hidden="true" />
+        </button>
+        {copied ? <span className="chain-muted">Copied</span> : null}
+      </div>
+      <footer className="chain-wallet-actions">
+        {w.needsGas ? <button type="button" className="chain-small-button is-primary" onClick={() => onTopUp(w)}>Top up</button> : null}
+        {group.rows.map((r) => (
+          <button key={r.id} type="button" className="chain-small-button" onClick={() => onEdit(r)}>
+            {several ? `Edit ${ROLE_LABEL[r.role].toLowerCase()}` : 'Edit'}
+          </button>
+        ))}
+      </footer>
+    </article>
+  );
+}
+
+function RoleState({ row }: { row: ChainRoleRow }) {
+  if (row.onChain === null) return <span className="chain-state is-warn"><HelpCircle size={14} aria-hidden="true" /> Unknown</span>;
+  if (row.drift) {
+    return <span className="chain-state is-bad"><AlertTriangle size={14} aria-hidden="true" /> {row.expected ? 'Missing' : 'Unexpected'}</span>;
+  }
+  return row.onChain
+    ? <span className="chain-state is-good"><CheckCircle2 size={14} aria-hidden="true" /> Held</span>
+    : <span className="chain-state"><MinusCircle size={14} aria-hidden="true" /> Not held</span>;
+}
+
+function ContractCard({ contract: c, busy, onAsk }: {
+  contract: ChainContract;
+  busy: boolean;
+  onAsk: (contract: ChainContract, row: ChainRoleRow | null, kind: ChainAction['kind']) => void;
+}) {
+  const driftCount = c.roles.filter((r) => r.drift).length;
+  const byRole = new Map<string, ChainRoleRow[]>();
+  c.roles.forEach((r) => byRole.set(r.role, [...(byRole.get(r.role) ?? []), r]));
+  return (
+    <article className="chain-contract-card" aria-label={CONTRACT_LABEL[c.name]}>
+      <header className="chain-contract-head">
+        <div>
+          <h3>{CONTRACT_LABEL[c.name]}</h3>
+          <a className="chain-mono" href={c.explorerUrl} target="_blank" rel="noreferrer" title={c.address}>
+            {shortAddress(c.address)} <ExternalLink size={11} aria-hidden="true" />
+          </a>
+        </div>
+        {driftCount > 0
+          ? <span className="chain-chip is-bad" data-testid={`drift-${c.name}`}><ShieldAlert size={12} aria-hidden="true" /> {driftCount} drift</span>
+          : <span className="chain-chip is-good"><ShieldCheck size={12} aria-hidden="true" /> Roles as expected</span>}
+      </header>
+      {[...byRole.entries()].map(([role, rows]) => (
+        <div key={role} className="chain-role-group">
+          <h4>{roleName(role)}</h4>
+          <ul>
+            {rows.map((r) => {
+              const last = isLastAdmin(c, r);
+              return (
+                <li key={`${r.role}-${r.account}`} className={r.drift ? 'is-drift' : undefined}>
+                  <div className="chain-role-account">
+                    <span>{r.label}</span>
+                    <small className="chain-mono">{shortAddress(r.account)}{r.expected ? '' : ' · should not hold'}</small>
+                  </div>
+                  <RoleState row={r} />
+                  <div className="chain-role-action">
+                    {r.onChain === false && r.expected ? (
+                      <button type="button" className="chain-small-button is-good" disabled={busy} onClick={() => onAsk(c, r, 'grant')}>Grant</button>
+                    ) : null}
+                    {r.onChain === true ? (
+                      <button type="button" className="chain-small-button is-ghost-bad" disabled={busy || last}
+                        title={last ? 'This is the last admin of the contract; it cannot be removed.' : undefined}
+                        onClick={() => onAsk(c, r, 'revoke')}>Revoke</button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </article>
+  );
+}
+
 function TopUpDialog({ wallet, currency, onClose }: { wallet: ChainWallet; currency: string; onClose: () => void }) {
   const [qr, setQr] = useState('');
   useEffect(() => {
@@ -311,7 +469,7 @@ function TopUpDialog({ wallet, currency, onClose }: { wallet: ChainWallet; curre
   return (
     <div className="modal-backdrop">
       <div className="stitch-panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="topup-title">
-        <h3 id="topup-title" className="section-title">Top up {wallet.label}</h3>
+        <h3 id="topup-title" className="chain-modal-title">Top up {wallet.label}</h3>
         <p className="modal-description">Send {currency} on <strong>Polygon Amoy</strong> from the treasury wallet to:</p>
         {qr ? <img className="chain-qr" src={qr} alt={`QR code for ${wallet.address}`} /> : null}
         <p className="chain-full-address" data-testid="topup-address">{wallet.address}</p>
@@ -347,14 +505,18 @@ function WalletForm({ chainId, onClose, onSaved }: { chainId: number; onClose: (
   return (
     <div className="modal-backdrop">
       <form className="stitch-panel modal-panel chain-form" role="dialog" aria-modal="true" aria-labelledby="add-wallet-title" onSubmit={(e) => void submit(e)}>
-        <h3 id="add-wallet-title" className="section-title">Add a wallet to the registry</h3>
+        <h3 id="add-wallet-title" className="chain-modal-title">Add a wallet to the registry</h3>
         <p className="modal-description">Public address only. Never paste a private key or seed phrase here.</p>
         <label>Address<input name="address" value={form.address} onChange={set('address')} placeholder="0x…" autoComplete="off" required /></label>
         <label>Label<input name="label" value={form.label} onChange={set('label')} maxLength={80} required /></label>
-        <label>Role<select name="role" value={form.role} onChange={set('role')}>{Object.entries(ROLE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-        <label>Custody<select name="custody" value={form.custody} onChange={set('custody')}><option value="personal">Personal wallet</option><option value="server">Server key</option></select></label>
-        <label>Owner<input name="owner_name" value={form.owner_name} onChange={set('owner_name')} maxLength={80} /></label>
-        <label>Alert below (POL)<input name="low_balance_pol" type="number" min="0" step="0.1" value={form.low_balance_pol} onChange={set('low_balance_pol')} /></label>
+        <div className="chain-form-row">
+          <label>Role<select name="role" value={form.role} onChange={set('role')}>{Object.entries(ROLE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          <label>Custody<select name="custody" value={form.custody} onChange={set('custody')}><option value="personal">Personal wallet</option><option value="server">Server key</option></select></label>
+        </div>
+        <div className="chain-form-row">
+          <label>Owner<input name="owner_name" value={form.owner_name} onChange={set('owner_name')} maxLength={80} /></label>
+          <label>Alert below (POL)<input name="low_balance_pol" type="number" min="0" step="0.1" value={form.low_balance_pol} onChange={set('low_balance_pol')} /></label>
+        </div>
         <label>Notes<input name="notes" value={form.notes} onChange={set('notes')} maxLength={500} /></label>
         {error ? <p className="bad-text" role="alert">{error}</p> : null}
         <div className="modal-actions">
@@ -383,7 +545,7 @@ function WalletEdit({ wallet, onClose, onSaved }: { wallet: ChainWallet; onClose
   return (
     <div className="modal-backdrop">
       <form className="stitch-panel modal-panel chain-form" role="dialog" aria-modal="true" aria-labelledby="edit-wallet-title" onSubmit={(e) => void submit(e)}>
-        <h3 id="edit-wallet-title" className="section-title">Edit {wallet.label}</h3>
+        <h3 id="edit-wallet-title" className="chain-modal-title">Edit {wallet.label}</h3>
         <p className="modal-description">Address, role and custody can't change. To replace a wallet, deactivate it and add the new one.</p>
         <label>Label<input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={80} required /></label>
         <label>Alert below (POL)<input type="number" min="0" step="0.1" value={threshold} onChange={(e) => setThreshold(e.target.value)} /></label>
