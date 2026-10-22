@@ -1807,3 +1807,89 @@ a.chain-mono:hover { text-decoration: underline; }
 .chain-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #514532; margin-bottom: 10px; }
 .chain-form input, .chain-form select { padding: 8px 10px; border-radius: 8px; border: 1px solid #d5c4ac; font: inherit; font-weight: 400; }
 .chain-checkbox { flex-direction: row !important; align-items: center; }
+
+/* Shared panels, tables and forms ----------------------------------- */
+/* These class names were used across pages but never styled. */
+.panel-section { padding: 20px 22px; }
+.panel-section + .panel-section { margin-top: 18px; }
+.section-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.section-heading-row h3 { font-size: 15px; font-weight: 800; color: #582f0e; }
+.section-heading-row > button:not([class]) { background: none; border: none; font-size: 20px; line-height: 1; color: #837560; cursor: pointer; padding: 2px 6px; }
+.section-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: #582f0e; line-height: 1.3; }
+.section-title svg { color: #7d5800; flex-shrink: 0; }
+.section-description { font-size: 13px; color: #837560; margin-top: 4px; line-height: 1.55; max-width: 760px; }
+.section-title + .section-description { margin-bottom: 14px; }
+.empty-state { padding: 22px; text-align: center; font-size: 13px; color: #837560; background: #faf9f5; border: 1px dashed rgba(88, 47, 14, 0.15); border-radius: 12px; }
+
+.table-scroll { overflow-x: auto; border: 1px solid rgba(88, 47, 14, 0.1); border-radius: 12px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #837560; padding: 10px 14px; background: #faf9f5; border-bottom: 1px solid rgba(88, 47, 14, 0.1); white-space: nowrap; }
+.data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(88, 47, 14, 0.08); color: #1b1c1a; vertical-align: middle; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: #fcfbf8; }
+.data-table td small { display: block; font-size: 11px; color: #837560; margin-top: 2px; }
+.data-table td code { font-size: 11px; color: #514532; background: #f1efe9; padding: 2px 6px; border-radius: 6px; }
+.data-table td .button + .button { margin-left: 6px; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.metric-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #faf9f5; border: 1px solid rgba(88, 47, 14, 0.1); border-radius: 12px; }
+.metric-card span { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #837560; }
+.metric-card strong { font-family: var(--font-heading); font-size: 20px; font-weight: 800; color: #582f0e; }
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid transparent; white-space: nowrap; }
+.button-secondary { background: #f1efe9; color: #514532; }
+.button-secondary:hover { background: #e7e3d8; }
+.button.button-danger { padding: 8px 14px; }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; font-size: 13px; background: rgba(255, 183, 3, 0.16); color: #6b4b00; margin-bottom: 12px; }
+.status-banner-success { background: #e3f3ea; color: #2d6a4f; }
+.status-banner-danger { background: #f8e6e6; color: #bc4749; }
+.status-banner strong { font-weight: 800; }
+.code-panel { background: #1b1c1a; color: #f4efe6; font-size: 12px; line-height: 1.5; padding: 14px; border-radius: 10px; overflow: auto; max-height: 360px; margin-top: 10px; }
+.detail-drawer { margin-top: 14px; padding: 16px; border: 1px solid rgba(88, 47, 14, 0.12); border-radius: 12px; background: #fcfbf8; }
+
+/* Form fields: a label wrapping its input. */
+.field-label, .settings-field, .form-grid label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: #514532; }
+.field-label { flex-direction: row; align-items: center; gap: 8px; }
+.field-label select, .settings-field input, .settings-field select, .settings-field textarea,
+.form-grid input:not([type=checkbox]), .form-grid select, .form-inline input:not([type=checkbox]), .form-inline select {
+  padding: 9px 11px; border-radius: 9px; border: 1px solid #d5c4ac; background: #fff; font: inherit; font-size: 13px; font-weight: 500; color: #1b1c1a; min-width: 0;
+}
+.field-label select { padding: 7px 10px; }
+.settings-field input:focus, .settings-field select:focus, .form-grid input:focus, .form-grid select:focus, .form-inline input:focus, .form-inline select:focus, .field-label select:focus {
+  outline: none; border-color: #ffb703; box-shadow: 0 0 0 3px rgba(255, 183, 3, 0.25);
+}
+.settings-grid + .button-approve { margin-top: 16px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; align-items: end; }
+.form-grid .form-check, .form-inline .form-check { flex-direction: row; align-items: center; gap: 8px; font-weight: 600; min-height: 38px; }
+.form-inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.form-inline label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: #514532; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* JuanChoice admin --------------------------------------------------- */
+.jc-section-title { font-size: 16px; font-weight: 800; color: #582f0e; margin-bottom: 6px; }
+.jc-sub { font-size: 13px; color: #837560; line-height: 1.55; margin-bottom: 14px; }
+.jc-policy { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: rgba(255, 183, 3, 0.12); color: #6b4b00; font-size: 12px; line-height: 1.55; }
+.jc-policy strong { display: block; font-size: 13px; color: #582f0e; margin-bottom: 2px; }
+.jc-list { display: grid; gap: 10px; margin-top: 14px; list-style: none; padding: 0; }
+.jc-item { border: 1px solid rgba(88, 47, 14, 0.1); border-radius: 12px; padding: 12px 14px; background: #fcfbf8; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.jc-item p { font-size: 12px; color: #837560; margin-top: 2px; }
+.jc-item-wide { display: block; }
+.jc-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.jc-tab { padding: 8px 12px; border-radius: 10px; background: #f1efe9; color: #514532; font-weight: 700; font-size: 12px; border: 1px solid transparent; cursor: pointer; }
+.jc-tab[aria-pressed=true] { background: #3f6653; color: #fff; }
+.jc-tab small { font-weight: 600; opacity: 0.8; }
+.jc-detail { display: grid; gap: 18px; }
+.jc-detail h4 { font-size: 13px; font-weight: 800; color: #582f0e; margin-bottom: 6px; }
+.jc-meta { font-size: 12px; color: #837560; margin-top: 2px; }
+.jc-audit { list-style: none; padding: 0; display: grid; gap: 4px; font-size: 12px; color: #514532; }
+.jc-notice { padding: 10px 14px; border-radius: 10px; background: #e3f3ea; color: #2d6a4f; font-weight: 700; font-size: 13px; }
+.jc-off { display: flex; gap: 12px; align-items: flex-start; padding: 18px 20px; border-radius: 14px; background: #fff; border: 1px solid rgba(88, 47, 14, 0.12); margin-bottom: 18px; }
+.jc-off svg { color: #b45309; flex-shrink: 0; margin-top: 2px; }
+.jc-off strong { display: block; font-size: 15px; color: #582f0e; margin-bottom: 4px; }
+.jc-off p { font-size: 13px; color: #514532; line-height: 1.55; }
+.jc-stack { display: grid; gap: 18px; }
+.jc-stack > .stitch-panel + .stitch-panel { margin-top: 0; }
+.jc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

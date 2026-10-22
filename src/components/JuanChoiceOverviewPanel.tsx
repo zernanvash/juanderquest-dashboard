@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarClock, Info, RefreshCw } from 'lucide-react';
-import { apiFetch } from '../api/client';
+import { ApiError, apiFetch } from '../api/client';
 import { describeError } from '../utils/errors';
 
 interface MonthlyOverview {
@@ -46,7 +46,7 @@ const formatManila = (value: string, timezone: string): string =>
     timeStyle: 'short',
   }).format(new Date(value));
 
-export function JuanChoiceOverviewPanel() {
+export function JuanChoiceOverviewPanel({ onFeatureDisabled }: { onFeatureDisabled?: () => void } = {}) {
   const [overview, setOverview] = useState<MonthlyOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,11 +59,12 @@ export function JuanChoiceOverviewPanel() {
       setOverview(data);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return;
+      if (cause instanceof ApiError && cause.code === 'FEATURE_DISABLED') onFeatureDisabled?.();
       setError(describeError(cause, 'The effective voting window could not be loaded.'));
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [onFeatureDisabled]);
 
   useEffect(() => {
     const controller = new AbortController();

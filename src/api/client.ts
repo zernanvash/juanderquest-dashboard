@@ -35,11 +35,20 @@ export const setUnauthorizedListener = (listener: (() => void) | null) => {
   unauthorizedListener = listener;
 };
 
+/** Readable text for error codes the API sends without a message. */
+const CODE_MESSAGES: Record<string, string> = {
+  FEATURE_DISABLED: 'This feature is turned off on this server.',
+  WRITES_DISABLED: 'Changes are turned off on this server.',
+  STORAGE_UNAVAILABLE: 'The database is unavailable. Please try again shortly.',
+  RATE_LIMITED: 'Too many requests. Wait a moment and try again.',
+  NOT_FOUND: 'The requested record was not found.',
+};
+
 const extractMessage = (data: unknown, status: number): string => {
   if (data && typeof data === 'object' && 'error' in data) {
     const error = (data as { error?: { message?: string; code?: string } }).error;
     if (error?.message) return error.message;
-    if (error?.code) return error.code;
+    if (error?.code) return CODE_MESSAGES[error.code] ?? `Request failed (${error.code.toLowerCase().replace(/_/g, ' ')}).`;
   }
   return `Request failed (${status}).`;
 };

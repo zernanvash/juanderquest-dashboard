@@ -52,22 +52,27 @@ export function MonthlyScheduleAdmin({token,onUnauthorized}:{token?:string|null;
     const result=await call('/reconcile',{method:'POST'});
     if(result.failed>0)throw new Error(`${result.failed} schedule(s) failed reconciliation. Review the scheduler logs before retrying.`);
   },'Scheduler checked due periods.');
-  return <section className="stitch-panel" aria-labelledby="monthly-schedule-heading" style={{padding:24}}>
-    <h3 id="monthly-schedule-heading" style={{fontWeight:800,fontSize:18}}>Automatic monthly rounds</h3>
-    <p style={{marginTop:8}}>Voting opens on the 1st and closes on the 8th at midnight Philippine time. The scheduler prepares eligible destinations seven days early. Ballot writes are controlled separately.</p>
+  return <section className="stitch-panel panel-section" aria-labelledby="monthly-schedule-heading">
+    <h3 id="monthly-schedule-heading" className="jc-section-title">Automatic monthly rounds</h3>
+    <p className="jc-sub">Voting opens on the 1st and closes on the 8th at midnight Philippine time. The scheduler prepares eligible destinations seven days early. Ballot writes are controlled separately.</p>
     {error&&<p role="alert" className="load-error">{error} <button type="button" onClick={()=>void refresh()}>Retry</button></p>}
-    {notice&&<p role="status">{notice}</p>}
-    <div style={{display:'flex',flexWrap:'wrap',alignItems:'end',gap:12,marginTop:12}}>
+    {notice&&<p role="status" className="jc-notice">{notice}</p>}
+    <div className="form-inline">
       <label>First month (day 1)<input type="date" value={period} onChange={event=>setPeriod(event.target.value)} /></label>
-      <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={isTest} onChange={event=>setIsTest(event.target.checked)} /> Synthetic QA schedule</label>
-      <button type="button" disabled={busy||!/^\d{4}-\d{2}-01$/.test(period)} onClick={create}>Create schedule</button>
-      <button type="button" disabled={busy} onClick={reconcile}>Check due periods</button>
+      <label className="form-check"><input type="checkbox" checked={isTest} onChange={event=>setIsTest(event.target.checked)} /> Synthetic QA schedule</label>
+      <div className="form-actions">
+        <button type="button" className="button-approve" disabled={busy||!/^\d{4}-\d{2}-01$/.test(period)} onClick={create}>Create schedule</button>
+        <button type="button" className="button-muted" disabled={busy} onClick={reconcile}>Check due periods</button>
+      </div>
     </div>
-    {loading&&<p role="status">Loading schedules…</p>}
-    {items.length===0?(!loading&&!error&&<p style={{marginTop:12}}>No monthly schedule exists yet.</p>):<ul style={{marginTop:12,display:'grid',gap:10}}>{items.map(item=><li key={item.id} style={{border:'1px solid #e3dfd5',borderRadius:12,padding:12}}>
-      <strong>{item.display_region} · {item.is_test?'Synthetic QA':'Public'} · {item.enabled?'Enabled':'Paused'}</strong>
-      <p>First month: {String(item.effective_period).slice(0,10)}. Latest period: {item.latest_period?`${String(item.latest_period).slice(0,10)} (${item.latest_status})`:'not prepared'}{item.reason_code?` · ${item.reason_code}`:''}</p>
-      <button type="button" disabled={busy} onClick={()=>void perform(()=>call(`/${item.id}`,{method:'PATCH',body:{
+    {loading&&<p role="status" className="jc-meta">Loading schedules…</p>}
+    {items.length===0?(!loading&&!error&&<p className="empty-state" style={{marginTop:14}}>No monthly schedule exists yet.</p>):<ul className="jc-list">{items.map(item=><li key={item.id} className="jc-item">
+      <div>
+        <strong>{item.display_region} · {item.is_test?'Synthetic QA':'Public'}</strong>{' '}
+        <span className={`status-pill ${item.enabled?'status-approved':'status-pending'}`}>{item.enabled?'Enabled':'Paused'}</span>
+        <p>First month: {String(item.effective_period).slice(0,10)} · Latest period: {item.latest_period?`${String(item.latest_period).slice(0,10)} (${item.latest_status})`:'not prepared'}{item.reason_code?` · ${item.reason_code}`:''}</p>
+      </div>
+      <button type="button" className="button-muted" disabled={busy} onClick={()=>void perform(()=>call(`/${item.id}`,{method:'PATCH',body:{
         enabled:!item.enabled,reason:'Operator changed monthly schedule availability',
       }}),item.enabled?'Schedule paused.':'Schedule enabled.')}>{item.enabled?'Pause schedule':'Enable schedule'}</button>
     </li>)}</ul>}
