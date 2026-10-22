@@ -16,6 +16,7 @@ import {
   Store,
   Ticket,
   Vote,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -167,6 +168,19 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Governance archive',
         icon: Vote,
         description: 'Historical governance records retained for inspection. JuanChoice is the active voting engine.',
+        available: true,
+      },
+    ],
+  },
+  {
+    id: 'blockchain',
+    label: 'Blockchain',
+    items: [
+      {
+        path: '/chain',
+        label: 'Wallets & contracts',
+        icon: Wallet,
+        description: 'Test-network wallets, POL balances, on-chain roles and audit. Admin actions are signed in your own wallet.',
         available: true,
       },
     ],

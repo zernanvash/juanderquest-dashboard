@@ -1700,3 +1700,22 @@ div.overview-card { cursor: default; }
   .shell-sidebar { transition: none; }
 }
 
+
+/* Plan 49 — Blockchain: wallets & contracts */
+.chain-address { white-space: nowrap; }
+.chain-address a { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.icon-button { background: none; border: none; cursor: pointer; padding: 2px 4px; color: #514532; vertical-align: middle; }
+.chain-row-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.chain-low { margin-left: 6px; }
+.chain-contract { margin-top: 16px; }
+.chain-contract-address { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin: 4px 0 10px; word-break: break-all; }
+.chain-drift-row { background: rgba(188, 71, 73, 0.08); }
+.chain-tx-banner { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; background: rgba(255, 183, 3, 0.18); color: #6b4b00; font-weight: 600; }
+.chain-tx-banner.is-good { background: #beead1; color: #2d6a4f; }
+.chain-tx-banner.is-bad { background: rgba(188, 71, 73, 0.15); color: #bc4749; }
+.chain-tx-banner button { margin-left: auto; background: none; border: none; font-size: 18px; cursor: pointer; color: inherit; }
+.chain-qr { display: block; width: 200px; height: 200px; margin: 8px auto; image-rendering: pixelated; }
+.chain-full-address { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; text-align: center; margin-bottom: 12px; }
+.chain-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: #514532; margin-bottom: 10px; }
+.chain-form input, .chain-form select { padding: 8px 10px; border-radius: 8px; border: 1px solid #d5c4ac; font: inherit; font-weight: 400; }
+.chain-checkbox { flex-direction: row !important; align-items: center; }
