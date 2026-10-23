@@ -7,6 +7,7 @@ import { DeniedPage } from './pages/DeniedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
+import { QuestReviewsPage } from './pages/QuestReviewsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
@@ -67,6 +68,8 @@ function RouteOutlet() {
       return <OverviewPage />;
     case '/submissions':
       return <SubmissionsPage />;
+    case '/quest-reviews':
+      return <QuestReviewsPage />;
     case '/destinations':
       return <DestinationsPage />;
     case '/quests':

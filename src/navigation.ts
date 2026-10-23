@@ -64,6 +64,13 @@ export const NAV_SECTIONS: NavSection[] = [
         available: true,
       },
       {
+        path: '/quest-reviews',
+        label: 'Quest attempt reviews',
+        icon: Award,
+        description: 'Multi-task attempt moderation and per-task photo/evidence approval queue.',
+        available: true,
+      },
+      {
         path: '/destinations',
         label: 'Destinations',
         icon: Compass,
