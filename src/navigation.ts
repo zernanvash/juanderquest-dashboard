@@ -13,6 +13,7 @@ import {
   MapPin,
   Settings2,
   ShieldAlert,
+  Sparkles,
   Store,
   Ticket,
   Vote,
@@ -137,6 +138,13 @@ export const NAV_SECTIONS: NavSection[] = [
         description: 'Current voucher offers available to travelers.',
         available: true,
       },
+    ],
+  },
+  {
+    id: 'traveler-shop',
+    label: 'Traveler shop',
+    items: [
+      { path:'/shop/cosmetics', label:'Cosmetics', icon:Sparkles, description:'Catalog cosmetics, grant items, and manage shop teasers.', available:true },
     ],
   },
   {

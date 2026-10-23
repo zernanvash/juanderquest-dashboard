@@ -23,6 +23,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
+import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 
 export function App() {
   return (
@@ -84,6 +85,8 @@ function RouteOutlet() {
       return <MerchantsPage />;
     case '/partners/vouchers':
       return <VouchersPage />;
+    case '/shop/cosmetics':
+      return <ShopCosmeticsPage />;
     case '/economy/funding':
       return <FundingPage />;
     case '/insights/analytics':

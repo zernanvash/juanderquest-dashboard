@@ -70,6 +70,9 @@ export interface Voucher {
   title: string;
   cost_points: number;
   description: string;
+  availability?: 'live' | 'preview';
+  partner_label?: string | null;
+  icon_key?: string | null;
 }
 
 export type CulturalQuizStatus = 'draft' | 'published' | 'paused' | 'archived';
