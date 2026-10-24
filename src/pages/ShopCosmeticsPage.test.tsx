@@ -68,7 +68,9 @@ describe('ShopCosmeticsPage', () => {
     await screen.findByText('Cosmetic updated.');
     const patchCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/banner-lingayen-sunset') && (init as RequestInit | undefined)?.method === 'PATCH');
     expect(patchCall).toBeTruthy();
-    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string).asset.palette).toBe('ember');
+    const patchBody = JSON.parse((patchCall?.[1] as RequestInit).body as string);
+    expect(patchBody.asset.palette).toBe('ember');
+    expect(patchBody).not.toHaveProperty('id');
   });
 
   it('shows the backend asset-validator message when a procedural banner is rejected', async () => {

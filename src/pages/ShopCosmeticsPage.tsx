@@ -53,7 +53,10 @@ export function ShopCosmeticsPage() {
     event.preventDefault(); setError('');
     try {
       const payload = { id: id.trim(), kind, name: name.trim(), rarity, price_points: price ? Number(price) : null, price_tjdq: null, unlock_achievement_id: unlock.trim() || null, asset, is_active: true };
-      await apiFetch(editingId ? `/admin/shop/cosmetics/${editingId}` : '/admin/shop/cosmetics', { method: editingId ? 'PATCH' : 'POST', body: payload });
+      const body = editingId
+        ? Object.fromEntries(Object.entries(payload).filter(([field]) => field !== 'id'))
+        : payload;
+      await apiFetch(editingId ? `/admin/shop/cosmetics/${editingId}` : '/admin/shop/cosmetics', { method: editingId ? 'PATCH' : 'POST', body });
       setMessage(editingId ? 'Cosmetic updated.' : 'Cosmetic created.'); setEditingId(''); setId(''); setName(''); await load();
     } catch (e: any) { setError(e.message || 'Could not save cosmetic.'); }
   };
