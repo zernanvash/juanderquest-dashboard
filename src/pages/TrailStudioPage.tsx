@@ -92,7 +92,7 @@ export function TrailStudioPage() {
     void mutate(trail.id,'','PATCH',body);
   };
   const generate=async(event:React.FormEvent)=>{
-    event.preventDefault();try{setBusy('generate');setError('');setNotice('');const result=await apiFetch<StudioTrail>('/admin/trails/generate',{method:'POST',body:{theme,tier,budgetMin:budget,minStops:2,maxStops:6,maxLegMin:60,maxPerCategory:2}});setNotice(`Draft created: ${result.title}`);await load();}
+    event.preventDefault();try{setBusy('generate');setError('');setNotice('');const result=await apiFetch<{trail:StudioTrail}>('/admin/trails/generate',{method:'POST',body:{theme,tier,budgetMin:budget,minStops:2,maxStops:6,maxLegMin:60,maxPerCategory:2}});setNotice(`Draft created: ${result.trail.title}`);await load();}
     catch(cause){setError(describeError(cause,'Trail generation failed.'));}finally{setBusy('');}
   };
   const refreshMatrix=async()=>{try{setBusy('matrix');setError('');const result=await apiFetch<MatrixStatus>('/admin/trails/matrix/refresh',{method:'POST',body:{costing:'auto'}});setNotice(`Matrix refreshed: ${result.rows} routes, ${result.approximate_count} approximate.`);await load();}catch(cause){setError(describeError(cause,'Matrix refresh failed.'));}finally{setBusy('');}};

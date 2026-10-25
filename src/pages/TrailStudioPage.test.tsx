@@ -39,7 +39,7 @@ describe('TrailStudioPage',()=>{
     const fetchMock=vi.fn().mockImplementation((url:string,init?:RequestInit)=>{
       if(url==='/api/v1/admin/trails/review'||url==='/api/v1/admin/trails?status=published'||url==='/api/v1/admin/trails/generations'||url==='/api/v1/admin/trails/matrix/status')return Promise.resolve(response([]));
       if(url==='/api/v1/admin/trails?status=draft')return Promise.resolve(response([draft]));
-      if(url==='/api/v1/admin/trails/generate')return Promise.resolve(response(draft,201));
+      if(url==='/api/v1/admin/trails/generate')return Promise.resolve(response({trail:draft,generation:{id:'generation-1'},solution:{feasible:true}},201));
       if(url==='/api/v1/admin/trails/trail-draft-1/review')return Promise.resolve(response({id:draft.id,status:'pending_review'}));
       return Promise.reject(new Error(`Unhandled API request: ${url} ${init?.method??''}`));
     });
@@ -48,6 +48,7 @@ describe('TrailStudioPage',()=>{
     render(<TrailStudioPage/>);
     fireEvent.change(await screen.findByLabelText('Theme'),{target:{value:'family heritage'}});
     fireEvent.click(screen.getByRole('button',{name:/Generate draft/i}));
+    expect(await screen.findByText('Draft created: Generated Coast')).toBeInTheDocument();
     await waitFor(()=>expect(screen.getByText('Generated Coast')).toBeInTheDocument(),{timeout:4000});
     const generateCall=fetchMock.mock.calls.find(call=>String(call[0]).endsWith('/generate'))!;
     expect(JSON.parse(generateCall[1].body)).toMatchObject({theme:'family heritage',tier:'starter',budgetMin:240});
