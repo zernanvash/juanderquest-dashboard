@@ -1,0 +1,9 @@
+import { makeNoise, fbm, clamp, mix, smoothstep, rgb, rgba, offscreenCanvas, type BannerGenerator } from './core';
+
+export const asin: BannerGenerator = { create(rng,W,H,c){const noise=makeNoise(rng),cell=H/(2.6+rng()*1.2),gc=Math.ceil(W/cell)+2,gr=Math.ceil(H/cell)+2,points:number[][]=[];
+  for(let j=0;j<gr;j++)for(let i=0;i<gc;i++)points.push([(i-.5+rng())*cell,(j-.5+rng())*cell,Math.floor(rng()*3)]);
+  const LH=Math.max(90,Math.round(H/2.2)),LW=Math.round(LH*W/H),sc=H/LH,buf=offscreenCanvas(LW,LH),bx=buf.getContext('2d')!,img=bx.createImageData(LW,LH),D=img.data,C=c.map(rgb);
+  for(let y=0;y<LH;y++)for(let x=0;x<LW;x++){const X=x*sc,Y=y*sc,ci=Math.floor(X/cell+.5),cj=Math.floor(Y/cell+.5);let f1=1e9,f2=1e9,id=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const q=points[clamp(cj+dj,0,gr-1)*gc+clamp(ci+di,0,gc-1)];const d=Math.hypot(q[0]-X,q[1]-Y);if(d<f1){f2=f1;f1=d;id=q[2];}else if(d<f2)f2=d;}let col=mix(C[1+id],[200,210,215],clamp(f1/cell)*.25+fbm(noise,X/H*9,Y/H*9,3)*.12);col=mix(col,C[0],1-smoothstep(cell*.02,cell*.07,f2-f1));const o=(y*LW+x)*4;D[o]=col[0];D[o+1]=col[1];D[o+2]=col[2];D[o+3]=255;}
+  bx.putImageData(img,0,0);const sparkles=Array.from({length:60},()=>[rng()*W,rng()*H,.6+rng()*1.4,rng()*6.28]);
+  return(ctx,t)=>{ctx.drawImage(buf,0,0,W,H);ctx.globalCompositeOperation='lighter';const p=((t*.07)%1.5-.25)*W*1.4,g=ctx.createLinearGradient(p-H,0,p+H,H*.6);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,rgba(c[4],.18));g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='source-over';for(const[x,y,r,ph]of sparkles){const a=Math.pow(Math.max(0,Math.sin(t*r+ph)),10);if(a<.02)continue;const L=H*.05*a;ctx.strokeStyle=rgba(c[4],a);ctx.lineWidth=Math.max(1,H*.006);ctx.beginPath();ctx.moveTo(x-L,y);ctx.lineTo(x+L,y);ctx.moveTo(x,y-L);ctx.lineTo(x,y+L);ctx.stroke();}};
+} };

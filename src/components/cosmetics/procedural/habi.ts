@@ -1,0 +1,6 @@
+import { rgba, offscreenCanvas, type BannerGenerator } from './core';
+
+export const habi: BannerGenerator = { create(rng,W,H,c){const rows=16,cs=H/rows,cols=Math.ceil(W/cs),p=8+Math.floor(rng()*4)*2,m=3+Math.floor(rng()*2),ox=Math.floor(rng()*p),buf=offscreenCanvas(W,Math.ceil(H)),b=buf.getContext('2d')!;
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){let k=0;if(j<2||j>=rows-2)k=(j===0||j===rows-1)?4:2;else{const u=(i+ox)%p,v=(j-2)%p,d=Math.abs(u-p/2)+Math.abs(v-p/2);k=d<1?3:d%m===0?1:d%m===2?2:0;}b.fillStyle=c[k];b.fillRect(i*cs,j*cs,cs+.6,cs+.6);b.fillStyle=(i+j)%2?'rgba(255,255,255,.10)':'rgba(0,0,0,.10)';if((i+j)%2)b.fillRect(i*cs+cs*.15,j*cs,cs*.18,cs);else b.fillRect(i*cs,j*cs+cs*.15,cs,cs*.18);}
+  return(ctx,t)=>{ctx.drawImage(buf,0,0);const r=Math.floor((t*.9)%rows),x=((t*.9)%1)*W;ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(0,r*cs,x,cs);ctx.fillStyle=rgba(c[3],.95);ctx.fillRect(x-cs*1.2,r*cs+cs*.3,cs*2.4,cs*.4);ctx.globalCompositeOperation='lighter';const q=((t*.12)%1.6-.3)*W;const g=ctx.createLinearGradient(q-H,0,q+H,H);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,.12)');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='source-over';};
+} };
