@@ -12,8 +12,10 @@ interface StudioTrail {
   story?:{intro?:string}; stops:Stop[]; ai_used?:boolean; ai_fallback_reason?:string|null; ai_model?:string|null; solver?:string; solver_ms?:number; objective?:number;
 }
 interface MatrixStatus {costing:string;rows:number;approximate_count:number;last_computed:string|null;graph_label:string|null}
+interface MatrixRefreshResult {requested:number;approximate:number;nodes:number}
 interface Generation {id:string;kind:string;solver:string;solver_ms:number;objective:number;result:Record<string,unknown>;ai_used:boolean;ai_fallback_reason?:string|null;created_at:string}
 interface CatalogSpot {id:string;name:string;municipality?:string}
+interface TrailArea {id:string;level:'region'|'province'|'town';display_name:string;published_spot_count:number}
 interface SolverRun {objective:number;feasible:boolean;stops:Array<{spotId:string}>;totalMin:number;totalKm:number;ms:number;solver:string}
 interface SolverComparison {local:SolverRun;cuopt:SolverRun}
 
@@ -41,11 +43,13 @@ export function TrailStudioPage() {
   const [generations,setGenerations]=useState<Generation[]>([]);
   const [matrix,setMatrix]=useState<MatrixStatus[]>([]);
   const [spots,setSpots]=useState<CatalogSpot[]>([]);
+  const [areas,setAreas]=useState<TrailArea[]>([]);
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [theme,setTheme]=useState('coastal discoveries');
+  const [areaId,setAreaId]=useState('');
   const [tier,setTier]=useState<Tier>('starter');
   const [budget,setBudget]=useState(240);
   const [cuoptResult,setCuoptResult]=useState<SolverComparison|null>(null);
@@ -56,15 +60,16 @@ export function TrailStudioPage() {
   const load=useCallback(async(signal?:AbortSignal)=>{
     try{
       setLoading(true);setError('');
-      const [reviewRows,publishedRows,draftRows,history,matrixRows,spotRows]=await Promise.all([
+      const [reviewRows,publishedRows,draftRows,history,matrixRows,areaRows,spotRows]=await Promise.all([
         apiFetch<StudioTrail[]>('/admin/trails/review',{signal}),
         apiFetch<StudioTrail[]>('/admin/trails?status=published',{signal}),
         apiFetch<StudioTrail[]>('/admin/trails?status=draft',{signal}),
         apiFetch<Generation[]>('/admin/trails/generations',{signal}).catch(()=>[]),
         apiFetch<MatrixStatus[]>('/admin/trails/matrix/status',{signal}).catch(()=>[]),
+        apiFetch<TrailArea[]>('/admin/trails/areas',{signal}).catch(()=>[]),
         cuoptEnabled?apiFetch<CatalogSpot[]>('/admin/spots',{signal}).catch(()=>[]):Promise.resolve([]),
       ]);
-      setQueue(reviewRows);setPublished(publishedRows);setDrafts(draftRows);setGenerations(history);setMatrix(matrixRows);setSpots(spotRows);
+      setQueue(reviewRows);setPublished(publishedRows);setDrafts(draftRows);setGenerations(history);setMatrix(matrixRows);setAreas(areaRows);setSpots(spotRows);
     }catch(cause){if(cause instanceof DOMException&&cause.name==='AbortError')return;setError(describeError(cause,'Unable to load Trail Studio.'));}
     finally{if(!signal?.aborted)setLoading(false);}
   },[]);
@@ -92,10 +97,10 @@ export function TrailStudioPage() {
     void mutate(trail.id,'','PATCH',body);
   };
   const generate=async(event:React.FormEvent)=>{
-    event.preventDefault();try{setBusy('generate');setError('');setNotice('');const result=await apiFetch<{trail:StudioTrail}>('/admin/trails/generate',{method:'POST',body:{theme,tier,budgetMin:budget,minStops:2,maxStops:6,maxLegMin:60,maxPerCategory:2}});setNotice(`Draft created: ${result.trail.title}`);await load();}
+    event.preventDefault();try{setBusy('generate');setError('');setNotice('');const result=await apiFetch<{trail:StudioTrail}>('/admin/trails/generate',{method:'POST',body:{area_id:areaId,theme,tier,budgetMin:budget,minStops:2,maxStops:6,maxLegMin:60,maxPerCategory:2}});setNotice(`Draft created: ${result.trail.title}`);await load();}
     catch(cause){setError(describeError(cause,'Trail generation failed.'));}finally{setBusy('');}
   };
-  const refreshMatrix=async()=>{try{setBusy('matrix');setError('');const result=await apiFetch<MatrixStatus>('/admin/trails/matrix/refresh',{method:'POST',body:{costing:'auto'}});setNotice(`Matrix refreshed: ${result.rows} routes, ${result.approximate_count} approximate.`);await load();}catch(cause){setError(describeError(cause,'Matrix refresh failed.'));}finally{setBusy('');}};
+  const refreshMatrix=async()=>{try{setBusy('matrix');setError('');const result=await apiFetch<MatrixRefreshResult>('/admin/trails/matrix/refresh',{method:'POST',body:{costing:'auto'}});setNotice(`Curated matrix refreshed: ${result.requested} pairs across ${result.nodes} stops, ${result.approximate} estimated.`);await load();}catch(cause){setError(describeError(cause,'Matrix refresh failed.'));}finally{setBusy('');}};
   const compare=async()=>{try{setBusy('compare');setError('');setCuoptResult(null);const result=await apiFetch<SolverComparison>('/admin/trails/compare-solvers',{method:'POST',body:{spot_ids:compareSpotIds,budget_min:compareBudget}});setCuoptResult(result);}catch(cause){setError(describeError(cause,'Solver comparison failed.'));}finally{setBusy('');}};
 
   if(loading)return <PageLoading label="Loading Trail Studio…"/>;
@@ -107,13 +112,14 @@ export function TrailStudioPage() {
     <section className="trail-studio-grid" aria-label="Matrix and generator controls">
       <article className="stitch-panel trail-studio-panel"><div className="trail-studio-panel-title"><div><p className="eyebrow">Routing coverage</p><h2>Travel matrix</h2></div><Route size={21}/></div>
         {matrix.length?<div className="trail-matrix-list">{matrix.map(item=><div key={item.costing} className="trail-matrix-row"><strong>{item.costing}</strong><span>{item.rows.toLocaleString()} pairs</span><span>{item.approximate_count.toLocaleString()} estimated</span><small>{item.last_computed?new Date(item.last_computed).toLocaleString():'No refresh yet'} · {item.graph_label||'graph label unavailable'}</small></div>)}</div>:<p className="trail-muted">No matrix rows are available yet. Route generation can use the flagged approximate fallback.</p>}
-        <button className="button-neutral" disabled={busy==='matrix'} onClick={()=>void refreshMatrix()}><RefreshCw size={14}/>{busy==='matrix'?'Refreshing…':'Refresh auto matrix'}</button>
+        <button className="button-neutral" disabled={busy==='matrix'} onClick={()=>void refreshMatrix()}><RefreshCw size={14}/>{busy==='matrix'?'Refreshing…':'Refresh curated auto matrix'}</button>
       </article>
       <form className="stitch-panel trail-studio-panel" onSubmit={generate}><div className="trail-studio-panel-title"><div><p className="eyebrow">Admin-only</p><h2>Generate now</h2></div><WandSparkles size={21}/></div>
+        <label>Generation area<select value={areaId} onChange={event=>setAreaId(event.target.value)} required><option value="">Choose a town or province</option>{areas.map(area=><option key={area.id} value={area.id}>{area.display_name} Â· {area.published_spot_count} spots</option>)}</select></label>
         <label>Theme<input value={theme} onChange={event=>setTheme(event.target.value)} required maxLength={80}/></label>
         <div className="trail-form-row"><label>Tier<select value={tier} onChange={event=>setTier(event.target.value as Tier)}><option value="starter">Starter</option><option value="explorer">Explorer</option><option value="signature">Signature</option><option value="legendary">Legendary</option></select></label><label>Budget minutes<input type="number" min={60} max={600} step={30} value={budget} onChange={event=>setBudget(Number(event.target.value))}/></label></div>
         <p className="trail-muted">Generated items start as drafts and are not visible to travelers until submitted, reviewed, then published.</p>
-        <button className="button-approve" disabled={busy==='generate'}><WandSparkles size={15}/>{busy==='generate'?'Optimizing…':'Generate draft'}</button>
+        <button className="button-approve" disabled={busy==='generate'||!areaId}><WandSparkles size={15}/>{busy==='generate'?'Optimizing…':'Generate draft'}</button>
       </form>
     </section>
 
