@@ -25,6 +25,7 @@ import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
+import { TrailStudioPage } from './pages/TrailStudioPage';
 
 export function App() {
   return (
@@ -90,6 +91,8 @@ function RouteOutlet() {
       return <VouchersPage />;
     case '/shop/cosmetics':
       return <ShopCosmeticsPage />;
+    case '/trails':
+      return <TrailStudioPage />;
     case '/economy/funding':
       return <FundingPage />;
     case '/insights/analytics':

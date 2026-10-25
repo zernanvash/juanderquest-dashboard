@@ -11,6 +11,7 @@ import {
   FlaskConical,
   LayoutDashboard,
   MapPin,
+  Route,
   Settings2,
   ShieldAlert,
   Sparkles,
@@ -152,6 +153,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Traveler shop',
     items: [
       { path:'/shop/cosmetics', label:'Cosmetics', icon:Sparkles, description:'Catalog cosmetics, grant items, and manage shop teasers.', available:true },
+      { path:'/trails', label:'Trail Studio', icon:Route, description:'Generate, review, edit and publish unlockable traveler trails.', available:true },
     ],
   },
   {
