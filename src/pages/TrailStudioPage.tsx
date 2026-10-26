@@ -18,6 +18,7 @@ interface CatalogSpot {id:string;name:string;municipality?:string}
 interface TrailArea {id:string;level:'region'|'province'|'town';display_name:string;published_spot_count:number}
 interface SolverRun {objective:number;feasible:boolean;stops:Array<{spotId:string}>;totalMin:number;totalKm:number;ms:number;solver:string}
 interface SolverComparison {local:SolverRun;cuopt:SolverRun}
+interface AdminSettings {revision:number;values:Record<string,unknown>}
 
 function RoutePreview({ stops }: { stops:Stop[] }) {
   const points = useMemo(() => {
@@ -48,6 +49,11 @@ export function TrailStudioPage() {
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [settingsRevision,setSettingsRevision]=useState(0);
+  const [personalGenerationEnabled,setPersonalGenerationEnabled]=useState(false);
+  const [settingsLoaded,setSettingsLoaded]=useState(false);
+  const [settingsError,setSettingsError]=useState('');
+  const [savingPersonalSetting,setSavingPersonalSetting]=useState(false);
   const [theme,setTheme]=useState('coastal discoveries');
   const [areaId,setAreaId]=useState('');
   const [tier,setTier]=useState<Tier>('starter');
@@ -60,7 +66,7 @@ export function TrailStudioPage() {
   const load=useCallback(async(signal?:AbortSignal)=>{
     try{
       setLoading(true);setError('');
-      const [reviewRows,publishedRows,draftRows,history,matrixRows,areaRows,spotRows]=await Promise.all([
+      const [reviewRows,publishedRows,draftRows,history,matrixRows,areaRows,spotRows,settings]=await Promise.all([
         apiFetch<StudioTrail[]>('/admin/trails/review',{signal}),
         apiFetch<StudioTrail[]>('/admin/trails?status=published',{signal}),
         apiFetch<StudioTrail[]>('/admin/trails?status=draft',{signal}),
@@ -68,8 +74,10 @@ export function TrailStudioPage() {
         apiFetch<MatrixStatus[]>('/admin/trails/matrix/status',{signal}).catch(()=>[]),
         apiFetch<TrailArea[]>('/admin/trails/areas',{signal}).catch(()=>[]),
         cuoptEnabled?apiFetch<CatalogSpot[]>('/admin/spots',{signal}).catch(()=>[]):Promise.resolve([]),
+        apiFetch<AdminSettings>('/admin/settings',{signal}).catch(cause=>{setSettingsError(describeError(cause,'Trail settings are unavailable.'));return null;}),
       ]);
       setQueue(reviewRows);setPublished(publishedRows);setDrafts(draftRows);setGenerations(history);setMatrix(matrixRows);setAreas(areaRows);setSpots(spotRows);
+      if(settings){setSettingsRevision(settings.revision);setPersonalGenerationEnabled(settings.values.trail_personal_generation_enabled===true);setSettingsLoaded(true);setSettingsError('');}
     }catch(cause){if(cause instanceof DOMException&&cause.name==='AbortError')return;setError(describeError(cause,'Unable to load Trail Studio.'));}
     finally{if(!signal?.aborted)setLoading(false);}
   },[]);
@@ -102,12 +110,20 @@ export function TrailStudioPage() {
   };
   const refreshMatrix=async()=>{try{setBusy('matrix');setError('');const result=await apiFetch<MatrixRefreshResult>('/admin/trails/matrix/refresh',{method:'POST',body:{costing:'auto'}});setNotice(`Curated matrix refreshed: ${result.requested} pairs across ${result.nodes} stops, ${result.approximate} estimated.`);await load();}catch(cause){setError(describeError(cause,'Matrix refresh failed.'));}finally{setBusy('');}};
   const compare=async()=>{try{setBusy('compare');setError('');setCuoptResult(null);const result=await apiFetch<SolverComparison>('/admin/trails/compare-solvers',{method:'POST',body:{spot_ids:compareSpotIds,budget_min:compareBudget}});setCuoptResult(result);}catch(cause){setError(describeError(cause,'Solver comparison failed.'));}finally{setBusy('');}};
+  const updatePersonalGeneration=async(enabled:boolean)=>{
+    if(!settingsLoaded||savingPersonalSetting)return;
+    try{setSavingPersonalSetting(true);setError('');setNotice('');const saved=await apiFetch<{revision:number;values:Record<string,unknown>}>('/admin/settings',{method:'PUT',body:{expected_revision:settingsRevision,changes:{trail_personal_generation_enabled:enabled},reason:enabled?'Enabled traveler-created trails from Trail Studio.':'Disabled traveler-created trails from Trail Studio.'}});setSettingsRevision(saved.revision);setPersonalGenerationEnabled(saved.values.trail_personal_generation_enabled===true);setNotice('Traveler trail generation setting saved.');}
+    catch(cause){setError(describeError(cause,'Could not save the traveler trail setting.'));if(cause instanceof Error&&'status' in cause){await load();}}
+    finally{setSavingPersonalSetting(false);}
+  };
 
   if(loading)return <PageLoading label="Loading Trail Studio…"/>;
   return <div className="trail-studio">
     <PageHeader title="Trail Studio" description="Build route drafts, review AI-assisted story text, inspect route quality, and publish only after operator review." actions={<button className="button-neutral" onClick={()=>void load()}><RefreshCw size={15}/> Refresh</button>}/>
     <div className="trail-studio-safety"><Sparkles size={16}/><span>Route selection is deterministic and catalog-only. AI can assist with preference parsing and narration; template fallback is labeled. No wallet transaction or on-chain action is performed here.</span></div>
     {error&&<div className="load-error" role="alert">{error}<button onClick={()=>void load()}>Retry</button></div>}{notice&&<p className="trail-studio-notice" role="status">{notice}</p>}
+
+    <section className="stitch-panel trail-studio-panel" aria-labelledby="trail-personal-setting-title"><div className="trail-studio-panel-title"><div><p className="eyebrow">Traveler access</p><h2 id="trail-personal-setting-title">Personal trail generation</h2></div><Sparkles size={20}/></div><p>Let travelers generate personal trails.</p>{settingsError&&<p className="load-error" role="alert">{settingsError}</p>}<label className="settings-checkbox"><input type="checkbox" checked={personalGenerationEnabled} disabled={!settingsLoaded||savingPersonalSetting} onChange={event=>void updatePersonalGeneration(event.target.checked)}/><span>{savingPersonalSetting?'Saving…':personalGenerationEnabled?'Enabled':'Disabled'}</span></label></section>
 
     <section className="trail-studio-grid" aria-label="Matrix and generator controls">
       <article className="stitch-panel trail-studio-panel"><div className="trail-studio-panel-title"><div><p className="eyebrow">Routing coverage</p><h2>Travel matrix</h2></div><Route size={21}/></div>

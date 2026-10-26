@@ -16,6 +16,7 @@ describe('TrailStudioPage',()=>{
 
   it('shows the review route map, fallback badge and requires explicit confirmation before publishing approximate legs',async()=>{
     const fetchMock=vi.fn().mockImplementation((url:string)=>{
+      if(url==='/api/v1/admin/settings')return Promise.resolve(response({revision:0,values:{trail_personal_generation_enabled:false}}));
       if(url==='/api/v1/admin/trails/review')return Promise.resolve(response([pending]));
       if(url==='/api/v1/admin/trails?status=published'||url==='/api/v1/admin/trails?status=draft'||url==='/api/v1/admin/trails/generations'||url==='/api/v1/admin/trails/matrix/status')return Promise.resolve(response([]));
       if(url==='/api/v1/admin/trails/areas')return Promise.resolve(response([{id:'dagupan',level:'town',display_name:'Dagupan City',published_spot_count:24}]));
@@ -38,6 +39,8 @@ describe('TrailStudioPage',()=>{
   it('generates an admin draft and offers the separate submit-for-review step',async()=>{
     const draft={...pending,id:'trail-draft-1',title:'Generated Coast',status:'draft',stops:[]};
     const fetchMock=vi.fn().mockImplementation((url:string,init?:RequestInit)=>{
+      if(url==='/api/v1/admin/settings'&&init?.method==='PUT')return Promise.resolve(response({revision:1,values:{trail_personal_generation_enabled:true}}));
+      if(url==='/api/v1/admin/settings')return Promise.resolve(response({revision:0,values:{trail_personal_generation_enabled:false}}));
       if(url==='/api/v1/admin/trails/review'||url==='/api/v1/admin/trails?status=published'||url==='/api/v1/admin/trails/generations'||url==='/api/v1/admin/trails/matrix/status')return Promise.resolve(response([]));
       if(url==='/api/v1/admin/trails/areas')return Promise.resolve(response([{id:'dagupan',level:'town',display_name:'Dagupan City',published_spot_count:24}]));
       if(url==='/api/v1/admin/trails?status=draft')return Promise.resolve(response([draft]));
@@ -57,5 +60,26 @@ describe('TrailStudioPage',()=>{
     expect(JSON.parse(generateCall[1].body)).toMatchObject({area_id:'dagupan',theme:'family heritage',tier:'starter',budgetMin:240});
     fireEvent.click(screen.getByRole('button',{name:/Submit for review/i}));
     await waitFor(()=>expect(fetchMock.mock.calls.some(call=>String(call[0]).endsWith('/review'))).toBe(true));
+  });
+
+  it('shows traveler personal trail generation off by default and saves the audited setting',async()=>{
+    const fetchMock=vi.fn().mockImplementation((url:string,init?:RequestInit)=>{
+      if(url==='/api/v1/admin/settings'&&init?.method==='PUT')return Promise.resolve(response({revision:1,values:{trail_personal_generation_enabled:true}}));
+      if(url==='/api/v1/admin/settings')return Promise.resolve(response({revision:0,values:{trail_personal_generation_enabled:false}}));
+      if(url==='/api/v1/admin/trails/review'||url==='/api/v1/admin/trails?status=published'||url==='/api/v1/admin/trails?status=draft'||url==='/api/v1/admin/trails/generations'||url==='/api/v1/admin/trails/matrix/status')return Promise.resolve(response([]));
+      if(url==='/api/v1/admin/trails/areas')return Promise.resolve(response([]));
+      return Promise.reject(new Error(`Unhandled API request: ${url}`));
+    });
+    vi.stubGlobal('fetch',fetchMock);
+    render(<TrailStudioPage/>);
+    const toggle=await screen.findByRole('checkbox');
+    expect((toggle as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText('Let travelers generate personal trails.')).toBeInTheDocument();
+    fireEvent.click(toggle);
+    await waitFor(()=>expect(fetchMock.mock.calls.some(call=>String(call[0])==='/api/v1/admin/settings'&&call[1]?.method==='PUT')).toBe(true));
+    const update=fetchMock.mock.calls.find(call=>String(call[0])==='/api/v1/admin/settings'&&call[1]?.method==='PUT')!;
+    expect(JSON.parse(update[1].body)).toMatchObject({expected_revision:0,changes:{trail_personal_generation_enabled:true}});
+    expect(await screen.findByText('Traveler trail generation setting saved.')).toBeInTheDocument();
+    expect((toggle as HTMLInputElement).checked).toBe(true);
   });
 });
