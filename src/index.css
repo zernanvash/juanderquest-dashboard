@@ -456,7 +456,7 @@ input, textarea, select {
 .analytics-row:last-child { border-bottom:0; }
 .analytics-daily { margin-top:20px; }
 .analytics-table .analytics-row { grid-template-columns:1fr 100px 100px; }
-@media (max-width: 640px) { .analytics-heading { align-items:stretch; flex-direction:column; } .analytics-kpis,.analytics-lists { grid-template-columns:1fr; } .analytics-table { overflow-x:auto; } .analytics-table .analytics-row { min-width:420px; } }
+@media (max-width: 640px) { .analytics-heading { align-items:stretch; flex-direction:column; } .analytics-kpis,.analytics-lists { grid-template-columns:1fr; } .analytics-table { overflow-x:visible; } .analytics-table .analytics-row { min-width:0; grid-template-columns:minmax(0,1fr) 64px 64px; gap:8px; } }
 
 @media (prefers-reduced-motion: reduce) {
   .gov-metric, .gov-insight-strip, .gov-chart-card, .gov-bar-fill, .gov-donut,
@@ -1709,7 +1709,7 @@ a.chain-mono:hover { text-decoration: underline; }
 .chain-muted { color: #837560; font-size: 12px; }
 .chain-nowrap { white-space: nowrap; }
 
-.chain-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.chain-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-bottom: 28px; }
 .chain-stat { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; background: #fff; border: 1px solid var(--chain-line); border-radius: 14px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03); align-items: flex-start; }
 .chain-stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #837560; }
 .chain-stat-value { font-family: var(--font-heading); font-size: 20px; font-weight: 800; color: #582f0e; line-height: 1.25; }
@@ -1952,3 +1952,5 @@ a.chain-mono:hover { text-decoration: underline; }
 @media(max-width:900px){.trail-studio-grid{grid-template-columns:1fr}.trail-studio-cards{grid-template-columns:1fr}}
 @media(max-width:600px){.trail-form-row,.trail-compare-results{grid-template-columns:1fr}.trail-studio-card-head{flex-direction:column}.trail-studio-actions button{flex:1}.trail-studio-draft{align-items:stretch}.trail-studio-draft button{justify-content:center}}
 .shell-menu-button, .shell-logout { min-height: 40px; min-width: 40px; }
+
+@media (max-width: 480px) { .chain-summary { grid-template-columns: 1fr; } }
