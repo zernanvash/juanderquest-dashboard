@@ -21,6 +21,8 @@ export interface CandidatePromotionAssessmentResponse {
   latest_assessment: PromotionAssessmentRow | null;
   crowd_status: string;
   crowd_confidence: string;
+  /** Plan 65 weekly rounds: 'automated' means the spotlight passes without a manual clearance. */
+  gate?: 'assessment' | 'automated';
 }
 
 export interface JuanChoicePromotionReviewProps {
@@ -245,7 +247,15 @@ export function JuanChoicePromotionReview({
   let reviewStateColor = '#7d5800'; // Amber/brown
   let reviewStateBg = '#fef3c7';
 
-  if (data?.crowd_status === 'estimated_busy') {
+  if (data?.gate === 'automated' && data.eligible) {
+    reviewStateLabel = 'Automated Safety Gate: CLEARED (Override / Restrict Spotlight)';
+    reviewStateColor = '#166534';
+    reviewStateBg = '#dcfce7';
+  } else if (data?.gate === 'automated' && data.eligibility_reason === 'ESTIMATED_BUSY') {
+    reviewStateLabel = 'Automated Safety Gate: HELD for crowding (a clearance overrides)';
+    reviewStateColor = '#991b1b';
+    reviewStateBg = '#fee2e2';
+  } else if (data?.crowd_status === 'estimated_busy' && !(latest?.decision === 'cleared' && !isExpired && data.eligible)) {
     reviewStateLabel = 'Currently busy (promotion withheld)';
     reviewStateColor = '#991b1b';
     reviewStateBg = '#fee2e2';
@@ -414,7 +424,9 @@ export function JuanChoicePromotionReview({
           }}
         >
           <div style={{ fontSize: 12, color: '#44403c', lineHeight: 1.4 }}>
-            <strong>Note:</strong> Clearing permits spotlight promotion only while real-time crowd and safety gates pass. Restricting immediately suspends promotion.
+            <strong>Note:</strong> {data?.gate === 'automated'
+              ? 'Weekly rounds pass the automated safety gate by default. A clearance overrides a crowd hold; restricting immediately removes the spotlight and its perks.'
+              : 'Clearing permits spotlight promotion only while real-time crowd and safety gates pass. Restricting immediately suspends promotion.'}
           </div>
 
           {conflictWarning && (

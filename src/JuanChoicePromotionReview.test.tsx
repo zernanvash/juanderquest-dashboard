@@ -851,6 +851,9 @@ describe('JuanChoiceAdmin integration and error isolation', () => {
           json: async () => ({ success: true, data: [] }),
         });
       }
+      if (url === '/api/v1/juanchoice/admin/festivals') {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, data: [] }) });
+      }
       if (url === '/api/v1/juanchoice/admin/schedules') {
         return Promise.resolve({
           ok: true,
@@ -1002,6 +1005,9 @@ describe('JuanChoiceAdmin integration and error isolation', () => {
           status: 200,
           json: async () => ({ success: true, data: [] }),
         });
+      }
+      if (url === '/api/v1/juanchoice/admin/festivals') {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, data: [] }) });
       }
       if (url === '/api/v1/juanchoice/admin/schedules') {
         return Promise.resolve({
