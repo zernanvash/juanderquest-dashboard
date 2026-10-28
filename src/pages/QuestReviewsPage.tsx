@@ -503,11 +503,11 @@ export function QuestReviewsPage() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : attempts.length > 0 ? (
             <div className="p-12 rounded-3xl bg-white border border-stone-200 text-center text-stone-400 text-sm">
               Select a quest attempt from the list to review task evidence.
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
