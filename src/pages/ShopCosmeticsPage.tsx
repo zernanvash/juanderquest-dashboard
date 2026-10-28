@@ -105,6 +105,14 @@ export function ShopCosmeticsPage() {
 
 function Swatch({ item }: { item: Item }) {
   if (item.kind === 'banner' && item.asset?.style === 'procedural') return <ProceduralBannerPreview asset={item.asset} seed={item.seed ?? 0} motion="still" aspect={2} className="w-24" />;
-  const style = item.kind === 'banner' ? { background: `linear-gradient(${item.asset?.angle || 135}deg,${(item.asset?.colors || ['#f4a261', '#e76f51']).join(',')})` } : item.kind === 'name_color' ? { color: item.asset?.color } : {};
-  return <span aria-label={`${item.name} preview swatch`} className="inline-flex min-w-12 items-center justify-center rounded-md px-2 py-1 text-xs font-bold" style={style}>{item.kind === 'title' ? item.asset?.text : item.kind === 'name_color' ? item.name : item.kind === 'frame' ? '◉' : ' '}</span>;
+  const isGradientBanner = item.kind === 'banner';
+  const style = isGradientBanner
+    ? { background: `linear-gradient(${item.asset?.angle || 135}deg,${(item.asset?.colors || ['#f4a261', '#e76f51']).join(',')})` }
+    : item.kind === 'name_color'
+    ? { color: item.asset?.color }
+    : {};
+  const className = isGradientBanner
+    ? 'inline-block w-24 aspect-[2/1] rounded'
+    : 'inline-flex min-w-12 items-center justify-center rounded-md px-2 py-1 text-xs font-bold';
+  return <span aria-label={`${item.name} preview swatch`} className={className} style={style}>{item.kind === 'title' ? item.asset?.text : item.kind === 'name_color' ? item.name : item.kind === 'frame' ? '◉' : null}</span>;
 }
