@@ -218,6 +218,7 @@ export function QuestReviewsPage() {
               type="button"
               onClick={() => void fetchAttempts()}
               className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              style={{ minHeight: 40, minWidth: 40 }}
             >
               Refresh list
             </button>

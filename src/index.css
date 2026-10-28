@@ -871,7 +871,7 @@ input, textarea, select {
   border: 1px solid #bc4749;
   color: #bc4749;
 }
-.button-muted { background: #e9e8e4; color: #514532; }
+.button-muted { background: #e9e8e4; color: #514532; min-height: 40px; min-width: 40px; }
 .button-muted:hover { background: #dedacf; }
 .button-danger { background: #bc4749; color: #ffffff; }
 .button-danger:disabled { opacity: 0.6; }
@@ -1951,3 +1951,4 @@ a.chain-mono:hover { text-decoration: underline; }
 .trail-compare-results ol { margin:8px 0 0; padding-left:20px; color:#766f61; font-size:11px; }
 @media(max-width:900px){.trail-studio-grid{grid-template-columns:1fr}.trail-studio-cards{grid-template-columns:1fr}}
 @media(max-width:600px){.trail-form-row,.trail-compare-results{grid-template-columns:1fr}.trail-studio-card-head{flex-direction:column}.trail-studio-actions button{flex:1}.trail-studio-draft{align-items:stretch}.trail-studio-draft button{justify-content:center}}
+.shell-menu-button, .shell-logout { min-height: 40px; min-width: 40px; }
