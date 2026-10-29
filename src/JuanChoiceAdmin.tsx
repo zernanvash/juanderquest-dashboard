@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { MonthlyScheduleAdmin } from './MonthlyScheduleAdmin';
 import { JuanChoicePromotionReview } from './JuanChoicePromotionReview';
 import { JuanChoiceFestivals } from './JuanChoiceFestivals';
+import { JuanChoicePerkControls, ManifestoEditor, usePlatformStaff } from './JuanChoicePerkControls';
 import { apiFetch, isAuthError } from './api/client';
 
 type Campaign = { id:string;slug:string;region:string;theme:string;status:string;opens_at:string;closes_at:string;is_test:boolean;candidate_count:number;ballot_count:number;
@@ -73,6 +74,8 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
   const availableSpots=spots.filter(spot=>spot.status==='published'&&!spot.recommendation_suppressed&&Boolean(spot.is_test)===Boolean(detail?.campaign.is_test));
   const weekly=detail?.campaign.policy_version==='juanchoice-weekly-v1';
   const nameOf=(candidateId:string)=>detail?.candidates.find(item=>item.id===candidateId)?.spot_name??candidateId;
+  const platform=usePlatformStaff(token);
+  const upcoming=Boolean(detail&&['draft','scheduled'].includes(detail.campaign.status)&&Date.parse(detail.campaign.opens_at)>Date.now());
   const canEdit=detail&&['draft','scheduled','voting'].includes(detail.campaign.status);
 
   return <section aria-labelledby="juanchoice-admin-title" className="jc-stack">
@@ -85,6 +88,7 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
     </div>
     <MonthlyScheduleAdmin token={token} onUnauthorized={onUnauthorized} />
     <JuanChoiceFestivals token={token} onUnauthorized={onUnauthorized} />
+    <JuanChoicePerkControls token={token} onUnauthorized={onUnauthorized} />
     {error&&<div className="load-error" role="alert">{error} <button type="button" onClick={()=>void load()}>Retry list</button></div>}
     {notice&&<p role="status" className="jc-notice">{notice}</p>}
     <div className="stitch-panel panel-section"><h3 className="jc-section-title">Create a draft round</h3>
@@ -117,6 +121,8 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
           {canEdit&&<button type="button" className={candidate.status==='eligible'?'button-reject':'button-muted'} disabled={busy} onClick={()=>{const next=candidate.status==='eligible'?'suspended':'eligible';const text=window.prompt(`Reason for marking ${candidate.spot_name} ${next}:`);if(text&&text.trim().length>=10)void mutate('Moderation',`/campaigns/${detail.campaign.id}/candidates/${candidate.id}`,{status:next,reason:text.trim()},'PATCH');else if(text)setError('Moderation reason must contain at least 10 characters.');}}>{candidate.status==='eligible'?'Suspend':'Restore'}</button>}
         </div>
         {Array.isArray(candidate.manifesto_perks)&&candidate.manifesto_perks.length>0&&<p className="jc-meta">Manifesto: {candidate.manifesto_perks.map(perkText).join(' · ')}</p>}
+        {platform&&upcoming&&<ManifestoEditor key={candidate.id+JSON.stringify(candidate.manifesto_perks??[])} campaignId={detail.campaign.id} candidateId={candidate.id} token={token}
+          current={(candidate.manifesto_perks??[]).map(perk=>perk.key).filter((key):key is string=>Boolean(key))} onSaved={()=>void refresh(detail.campaign.id)} />}
         <JuanChoicePromotionReview
           campaignId={detail.campaign.id}
           candidateId={candidate.id}
