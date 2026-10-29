@@ -15,7 +15,7 @@ export type Account = {
 };
 type AuditRow = {
   created_at: string; old_role: string; new_role: string; old_scope: string | null; new_scope: string | null;
-  reason: string; actor_name: string | null; target_name: string | null; target_email: string | null;
+  reason: string; actor_id: string; actor_name: string | null; target_name: string | null; target_email: string | null;
 };
 
 // One choice per meaningful combination, so nobody has to understand role + scope separately.
@@ -179,7 +179,7 @@ export function DeveloperRolesPage() {
                   <strong>{entry.target_name ?? entry.target_email ?? 'Account'}: {accessLabel(entry.old_role as Role, entry.old_scope as Scope)} → {accessLabel(entry.new_role as Role, entry.new_scope as Scope)}</strong>
                   <span>{new Date(entry.created_at).toLocaleString()}</span>
                 </div>
-                <p>{entry.reason} — by {entry.actor_name ?? 'unknown'}</p>
+                <p>{entry.reason} — by {entry.actor_name ?? entry.actor_id}</p>
               </li>
             ))}
           </ul>

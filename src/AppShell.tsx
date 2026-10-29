@@ -113,7 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </span>
                 <span className="shell-user-meta">
                   <span className="shell-user-name">{profile.display_name || 'Administrator'}</span>
-                  <span className="shell-user-role">Administrator</span>
+                  <span className="shell-user-role">{isDeveloper ? 'Developer' : profile.admin_scope === 'platform' ? 'JuanderQuest staff' : 'Administrator'}</span>
                 </span>
               </div>
             ) : null}
