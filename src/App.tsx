@@ -26,6 +26,7 @@ import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
+import { DeveloperRolesPage } from './pages/DeveloperRolesPage';
 
 export function App() {
   return (
@@ -105,6 +106,8 @@ function RouteOutlet() {
       return <SystemStatusPage />;
     case '/system/settings':
       return <SettingsPage />;
+    case '/system/developer':
+      return <DeveloperRolesPage />;
     case '/system/economy-lab':
       return economyLabEnabled ? <EconomyLabPage /> : <NotFoundPage />;
     default:

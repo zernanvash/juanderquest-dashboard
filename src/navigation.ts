@@ -17,6 +17,7 @@ import {
   Sparkles,
   Store,
   Ticket,
+  UserCog,
   Vote,
   Wallet,
   type LucideIcon,
@@ -28,6 +29,8 @@ export interface NavItem {
   icon: LucideIcon;
   description: string;
   available: boolean;
+  /** Shown only to developers (admin_scope='developer'). */
+  developerOnly?: boolean;
 }
 
 export interface NavSection {
@@ -219,6 +222,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Settings2,
         description: 'Approved low-risk settings with server validation, revision checks and audit.',
         available: true,
+      },
+      {
+        path: '/system/developer',
+        label: 'Developer: roles',
+        icon: UserCog,
+        description: 'Give or remove admin, staff and developer access. Developers only.',
+        available: true,
+        developerOnly: true,
       },
       {
         path: '/system/economy-lab',

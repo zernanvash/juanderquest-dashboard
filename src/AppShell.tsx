@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const travelerUrl = import.meta.env.VITE_TRAVELER_URL || '/app';
   const activeItem = findNavItem(path);
+  const isDeveloper = profile?.role === 'admin' && profile?.admin_scope === 'developer';
 
   useEffect(() => {
     setNavOpen(false);
@@ -52,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="shell-nav">
           {NAV_SECTIONS.map((section) => {
-            const items = section.items.filter((item) => item.available);
+            const items = section.items.filter((item) => item.available && (!item.developerOnly || isDeveloper));
             if (!items.length) return null;
             return (
               <div key={section.id} className="shell-nav-section">
