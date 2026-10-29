@@ -9,7 +9,7 @@ describe('Plan 65 weekly JuanChoice admin', () => {
   beforeEach(() => vi.restoreAllMocks());
   afterEach(() => vi.restoreAllMocks());
 
-  it('shows weighted telemetry, the minister and the active perks of a weekly round', async () => {
+  it('shows weighted telemetry, the vice champion and the active perks of a weekly round', async () => {
     const campaign = { id: 'wk-1', slug: 'weekly-2026-W44-s', region: 'Pangasinan', theme: 'Coast week', status: 'finalized',
       opens_at: '2026-10-25T16:00:00.000Z', closes_at: '2026-11-01T16:00:00.000Z', is_test: false, candidate_count: 2, ballot_count: 7,
       policy_version: 'juanchoice-weekly-v1', round_tier: 'special_festival', festival_name: "Pista'y Dayat", weighted_votes: 12, boost_points: 125 };
@@ -42,8 +42,8 @@ describe('Plan 65 weekly JuanChoice admin', () => {
     expect(screen.getByText(/underdog ×2/)).toBeTruthy();
     expect(screen.getByText(/Manifesto: \+50% quest XP here · anchor · -20% Hiyas trails \(mystery\)/)).toBeTruthy();
     const result = screen.getByTestId('jc-weekly-result');
-    expect(within(result).getByText(/Champion: Patar Beach · Minister: Enchanted Cave/)).toBeTruthy();
-    expect(within(result).getByText(/\+5 daily stamps \(minister\)/)).toBeTruthy();
+    expect(within(result).getByText(/Champion: Patar Beach · Vice Champion: Enchanted Cave/)).toBeTruthy();
+    expect(within(result).getByText(/\+5 daily stamps \(vice champion\)/)).toBeTruthy();
     expect((await screen.findAllByText('Automated Safety Gate: CLEARED (Override / Restrict Spotlight)')).length).toBe(2);
   });
 
