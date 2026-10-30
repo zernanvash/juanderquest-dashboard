@@ -89,4 +89,34 @@ describe('ShopCosmeticsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create item' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid procedural generator.');
   });
+
+  it('renders a legacy gradient banner swatch with fixed preview size and gradient style', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      const data = path.includes('/stats')
+        ? { totals: { itemsSold: 1, pointsSpent: 150 } }
+        : path.includes('/teasers')
+        ? []
+        : [
+            {
+              id: 'banner-legacy-gradient',
+              kind: 'banner',
+              name: 'Sunset Gradient',
+              rarity: 'rare',
+              price_points: 150,
+              price_tjdq: null,
+              asset: { style: 'gradient', angle: 90, colors: ['#ff7e5f', '#feb47b'] },
+              is_active: true,
+            },
+          ];
+      return { ok: true, status: 200, json: async () => ({ success: true, data }) } as Response;
+    });
+    render(<ShopCosmeticsPage />);
+    const swatch = await screen.findByLabelText('Sunset Gradient preview swatch');
+    expect(swatch).toBeTruthy();
+    expect(swatch.className).toContain('w-24');
+    expect(swatch.className).toContain('aspect-[2/1]');
+    expect(swatch.className).toContain('rounded');
+    expect(swatch.style.background).toMatch(/linear-gradient\(90deg, ?(#ff7e5f|rgb\(255, 126, 95\)), ?(#feb47b|rgb\(254, 180, 123\))\)/);
+  });
 });

@@ -70,7 +70,7 @@ export function ShopCosmeticsPage() {
     <PageHeader title="Cosmetics shop" description="Manage the traveler cosmetic catalog, grants, sales metrics, and coming soon cards." />
     {error && <p role="alert" className="status-banner status-banner-danger">{error}</p>}{message && <p role="status" className="status-banner status-banner-success">{message}</p>}
     <div className="metric-grid"><div className="metric-card"><span>Items sold</span><strong>{stats?.totals?.itemsSold ?? 0}</strong></div><div className="metric-card"><span>Points spent</span><strong>{stats?.totals?.pointsSpent ?? 0}</strong></div><div className="metric-card"><span>Catalog items</span><strong>{items.length}</strong></div></div>
-    <section className="panel-section"><h2 className="section-title">Catalog</h2><div className="table-scroll"><table className="data-table"><thead><tr><th>Preview</th><th>Cosmetic</th><th>Kind / rarity</th><th>Points</th><th>tJDQ</th><th>Unlock</th><th>Active</th><th>Owners</th><th>Actions</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><Swatch item={item} /></td><td><strong>{item.name}</strong><small><code>{item.id}</code></small></td><td>{item.kind}<small>{item.rarity}</small></td><td>{item.price_points ?? '—'}</td><td>{item.price_tjdq ?? '—'}</td><td>{item.unlock_achievement_id ?? '—'}</td><td><span className="status-pill">{item.is_active ? 'Active' : 'Inactive'}</span></td><td>{item.owners ?? 0}</td><td><button className="button button-secondary" onClick={() => edit(item)}>Edit</button><button className="button button-secondary" onClick={() => setActiveId(item.id)}>Grant</button>{item.is_active && <button className="button button-secondary" onClick={() => void deactivate(item)}>Deactivate</button>}</td></tr>)}</tbody></table></div></section>
+    <section className="panel-section"><h2 className="section-title">Catalog</h2><div className="table-scroll"><table className="data-table" style={{ minWidth: 980 }}><thead><tr><th>Preview</th><th>Cosmetic</th><th>Kind / rarity</th><th>Points</th><th>tJDQ</th><th>Unlock</th><th>Active</th><th>Owners</th><th>Actions</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><Swatch item={item} /></td><td><strong>{item.name}</strong><small><code>{item.id}</code></small></td><td>{item.kind}<small>{item.rarity}</small></td><td>{item.price_points ?? '—'}</td><td>{item.price_tjdq ?? '—'}</td><td>{item.unlock_achievement_id ?? '—'}</td><td><span className="status-pill">{item.is_active ? 'Active' : 'Inactive'}</span></td><td>{item.owners ?? 0}</td><td><button className="button button-secondary" onClick={() => edit(item)}>Edit</button><button className="button button-secondary" onClick={() => setActiveId(item.id)}>Grant</button>{item.is_active && <button className="button button-secondary" onClick={() => void deactivate(item)}>Deactivate</button>}</td></tr>)}</tbody></table></div></section>
     <section className="panel-section"><h2 className="section-title">{editingId ? 'Edit cosmetic' : 'Create cosmetic'}</h2>{editingId && <button type="button" className="button button-secondary" onClick={cancelEdit}>Cancel edit</button>}
       <form className="form-grid" onSubmit={save}>
         <label>ID<input required minLength={3} maxLength={60} pattern="[a-z0-9-]+" value={id} readOnly={Boolean(editingId)} onChange={(e) => setId(e.target.value)} /></label>
@@ -104,7 +104,28 @@ export function ShopCosmeticsPage() {
 }
 
 function Swatch({ item }: { item: Item }) {
-  if (item.kind === 'banner' && item.asset?.style === 'procedural') return <ProceduralBannerPreview asset={item.asset} seed={item.seed ?? 0} motion="still" aspect={2} className="w-24" />;
-  const style = item.kind === 'banner' ? { background: `linear-gradient(${item.asset?.angle || 135}deg,${(item.asset?.colors || ['#f4a261', '#e76f51']).join(',')})` } : item.kind === 'name_color' ? { color: item.asset?.color } : {};
-  return <span aria-label={`${item.name} preview swatch`} className="inline-flex min-w-12 items-center justify-center rounded-md px-2 py-1 text-xs font-bold" style={style}>{item.kind === 'title' ? item.asset?.text : item.kind === 'name_color' ? item.name : item.kind === 'frame' ? '◉' : ' '}</span>;
+  if (item.kind === 'banner' && item.asset?.style === 'procedural') {
+    return <div style={{ width: 96 }}><ProceduralBannerPreview asset={item.asset} seed={item.seed ?? 0} motion="still" aspect={2} /></div>;
+  }
+  const isGradientBanner = item.kind === 'banner';
+  if (isGradientBanner) {
+    return <span aria-label={`${item.name} preview swatch`} className="inline-block w-24 aspect-[2/1] rounded" style={{
+      display: 'block',
+      width: 96,
+      aspectRatio: '2 / 1',
+      borderRadius: 6,
+      background: `linear-gradient(${item.asset?.angle || 135}deg,${(item.asset?.colors || ['#f4a261', '#e76f51']).join(',')})`,
+    }} />;
+  }
+  return <span aria-label={`${item.name} preview swatch`} style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 48,
+    padding: '4px 8px',
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 700,
+    ...(item.kind === 'name_color' ? { color: item.asset?.color } : {}),
+  }}>{item.kind === 'title' ? item.asset?.text : item.kind === 'name_color' ? item.name : item.kind === 'frame' ? '◉' : null}</span>;
 }

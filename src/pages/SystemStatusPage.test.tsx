@@ -55,6 +55,7 @@ describe('SystemStatusPage', () => {
     expect(screen.getByText(/postgres/i)).toBeInTheDocument();
     expect(screen.getByText(/2ms · required/i)).toBeInTheDocument();
     expect(screen.getByText('alpha-abc1234')).toBeInTheDocument();
+    expect(screen.getByText(/Backend release/i)).toBeInTheDocument();
     expect(screen.getByText('43/43 · up to date')).toBeInTheDocument();
     expect(screen.getByText('JuanChoice voting writes')).toBeInTheDocument();
     expect(screen.getByText('on')).toBeInTheDocument();

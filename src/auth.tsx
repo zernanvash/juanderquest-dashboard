@@ -18,6 +18,8 @@ export interface AdminProfile {
   role: string;
   avatar_url?: string;
   wallet_address?: string;
+  /** 'developer' | 'platform' | 'area' for admins (migrations 075/076). */
+  admin_scope?: string | null;
 }
 
 export type AuthStatus = 'checking' | 'anonymous' | 'denied' | 'authenticated' | 'unavailable';
@@ -40,6 +42,11 @@ interface AuthValue {
 interface EthereumProvider {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 }
+
+type WalletOrSessionResult = { token?: string; account_completion_required?: boolean };
+
+export const WALLET_COMPLETION_MESSAGE =
+  'This wallet needs an email and password first. Finish your account at juanderquest.app/login, then sign in here again.';
 
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -116,7 +123,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const finalizeLogin = useCallback(
-    async (result: { token?: string } | null) => {
+    async (result: WalletOrSessionResult | null) => {
+      // Plan 67: a wallet without an email + password account gets no session until it is finished.
+      if (result?.account_completion_required) throw new Error(WALLET_COMPLETION_MESSAGE);
       setBearerToken(result?.token ?? null);
       const user = await apiFetch<AdminProfile>('/auth/me');
       await applyProfile(user);
@@ -153,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'personal_sign',
       params: [challenge.message, address],
     })) as string;
-    const result = await apiFetch<{ token?: string }>('/auth/wallet/login', {
+    const result = await apiFetch<WalletOrSessionResult>('/auth/wallet/login', {
       method: 'POST',
       body: { address, signature, remember_me: true },
       token: null,
@@ -163,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithLocalWallet = useCallback(
     async (address: string) => {
-      const result = await apiFetch<{ token?: string }>('/auth/wallet/local-login', {
+      const result = await apiFetch<WalletOrSessionResult>('/auth/wallet/local-login', {
         method: 'POST',
         body: { address: address.trim(), remember_me: true },
         token: null,

@@ -86,9 +86,9 @@ export function SystemStatusPage() {
               </ul>
             </section>
 
-            <section className="stitch-panel status-card" aria-label="Mobile release">
+            <section className="stitch-panel status-card" aria-label="Backend release">
               <h2 className="settings-section-title">
-                <PackageCheck size={15} aria-hidden="true" /> Mobile release ({status.release.channel})
+                <PackageCheck size={15} aria-hidden="true" /> Backend release ({status.release.channel})
               </h2>
               <div className="merchant-detail-grid">
                 <div><span>Version</span><strong>{status.release.version_name}</strong></div>

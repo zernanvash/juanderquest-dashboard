@@ -218,6 +218,7 @@ export function QuestReviewsPage() {
               type="button"
               onClick={() => void fetchAttempts()}
               className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              style={{ minHeight: 40, minWidth: 40 }}
             >
               Refresh list
             </button>
@@ -502,11 +503,11 @@ export function QuestReviewsPage() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : attempts.length > 0 ? (
             <div className="p-12 rounded-3xl bg-white border border-stone-200 text-center text-stone-400 text-sm">
               Select a quest attempt from the list to review task evidence.
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

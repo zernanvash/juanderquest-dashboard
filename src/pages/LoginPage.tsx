@@ -6,7 +6,7 @@ import { describeError } from '../utils/errors';
 const LOCAL_ADMIN_WALLET = '0xfadd476c10b6a93bc26a226f9b7d8e8c556f9671';
 
 export function LoginPage() {
-  const { status, error, walletMode, signInWithEmail, signInWithWallet, signInWithLocalWallet, retry } = useAuth();
+  const { status, walletMode, signInWithEmail, signInWithWallet, signInWithLocalWallet, retry } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -69,7 +69,7 @@ export function LoginPage() {
 
         {status === 'unavailable' ? (
           <div className="load-error" role="alert">
-            {error || 'The session service is unavailable.'}
+            The control room service is unavailable. Check your connection and try again.
             <button type="button" onClick={() => void retry()}>
               Retry
             </button>

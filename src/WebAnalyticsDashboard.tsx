@@ -333,7 +333,7 @@ export function WebAnalyticsDashboard({
               <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
                 <svg
                   viewBox={`0 0 ${chartData.chartWidth} ${chartData.chartHeight}`}
-                  style={{ width: '100%', height: 'auto', minWidth: '500px', display: 'block' }}
+                  style={{ width: '100%', height: 'auto', minWidth: 0, display: 'block' }}
                 >
                   <defs>
                     <linearGradient id="viewsAreaGrad" x1="0" y1="0" x2="0" y2="1">
