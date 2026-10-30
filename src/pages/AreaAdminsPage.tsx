@@ -16,6 +16,8 @@ export function AreaAdminsPage() {
   const [powers, setPowers] = useState<Power[]>([...POWERS]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Granting and revoking change the account's role, which only developers may do (migration 076).
+  const [developer, setDeveloper] = useState(false);
 
   const load = async () => {
     const [areaData, adminData] = await Promise.all([
@@ -25,7 +27,10 @@ export function AreaAdminsPage() {
     setAreas(areaData); setAssignments(adminData.assignments); setAudit(adminData.audit);
     if (!areaId && areaData.length) setAreaId(areaData[0].id);
   };
-  useEffect(() => { void load().catch((cause) => setError(cause.message || 'Could not load area administrators.')); }, []);
+  useEffect(() => {
+    void load().catch((cause) => setError(cause.message || 'Could not load area administrators.'));
+    void apiFetch<{ developer: boolean }>('/admin/developer/access').then((access) => setDeveloper(access.developer)).catch(() => setDeveloper(false));
+  }, []);
 
   const grant = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError('');
@@ -47,15 +52,16 @@ export function AreaAdminsPage() {
   return <section className="page-stack">
     <header className="page-heading"><div><p className="eyebrow">Platform access</p><h1>Area admins</h1><p>Grant LGU staff access to selected administrative areas and controls.</p></div></header>
     {error ? <p className="notice notice-error" role="alert">{error}</p> : null}
-    <form className="stitch-panel page-stack" onSubmit={(event) => void grant(event)}>
+    {!developer ? <p className="notice">Only developers can grant or revoke area admins, because it changes the account's role. You can still change the permissions of an active assignment.</p> : null}
+    {developer ? <form className="stitch-panel page-stack" onSubmit={(event) => void grant(event)}>
       <h2>Grant an area assignment</h2>
       <label>User ID<input required value={userId} onChange={(event) => setUserId(event.target.value)} placeholder="Existing user ID" /></label>
       <label>Area<select value={areaId} onChange={(event) => setAreaId(event.target.value)}>{areas.map((area) => <option key={area.id} value={area.id}>{area.display_name} · {area.level}</option>)}</select></label>
       <fieldset><legend>Permissions</legend>{POWERS.map((power) => <label key={power}><input type="checkbox" checked={powers.includes(power)} onChange={(event) => setPowers((current) => event.target.checked ? [...current, power] : current.filter((value) => value !== power))} /> {power.replace(/_/g, ' ')}</label>)}</fieldset>
       <button type="submit" disabled={busy || !userId.trim() || !areaId || !powers.length}>{busy ? 'Saving…' : 'Grant access'}</button>
-    </form>
+    </form> : null}
     <section className="stitch-panel"><h2>Assignments</h2><div className="table-scroll"><table><thead><tr><th>User</th><th>Area</th><th>Permissions</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-      {assignments.map((assignment) => <tr key={assignment.id}><td>{assignment.display_name}<small>{assignment.email || assignment.user_id}</small></td><td>{assignment.area_name}</td><td><div className="page-stack">{POWERS.map((power) => <label key={power}><input type="checkbox" checked={assignment.powers.includes(power)} disabled={Boolean(assignment.revoked_at)} onChange={(event) => void savePowers(assignment, event.target.checked ? [...assignment.powers, power] : assignment.powers.filter((item) => item !== power))} /> {power.replace(/_/g, ' ')}</label>)}</div></td><td>{assignment.revoked_at ? 'Revoked' : 'Active'}</td><td>{!assignment.revoked_at ? <button type="button" onClick={() => void revoke(assignment)}>Revoke</button> : '—'}</td></tr>)}
+      {assignments.map((assignment) => <tr key={assignment.id}><td>{assignment.display_name}<small>{assignment.email || assignment.user_id}</small></td><td>{assignment.area_name}</td><td><div className="page-stack">{POWERS.map((power) => <label key={power}><input type="checkbox" checked={assignment.powers.includes(power)} disabled={Boolean(assignment.revoked_at)} onChange={(event) => void savePowers(assignment, event.target.checked ? [...assignment.powers, power] : assignment.powers.filter((item) => item !== power))} /> {power.replace(/_/g, ' ')}</label>)}</div></td><td>{assignment.revoked_at ? 'Revoked' : 'Active'}</td><td>{!assignment.revoked_at && developer ? <button type="button" onClick={() => void revoke(assignment)}>Revoke</button> : '—'}</td></tr>)}
       {!assignments.length ? <tr><td colSpan={5}>No area assignments.</td></tr> : null}
     </tbody></table></div></section>
     <section className="stitch-panel"><h2>Recent administrator audit</h2><ul>{audit.map((entry) => <li key={entry.id}>{entry.action} · {entry.subject_id} · {new Date(entry.created_at).toLocaleString()}</li>)}</ul></section>
