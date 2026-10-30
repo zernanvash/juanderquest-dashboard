@@ -18,6 +18,8 @@ import { VouchersPage } from './pages/VouchersPage';
 import { JuanChoicePage } from './pages/JuanChoicePage';
 import { AffiliatesPage } from './pages/AffiliatesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AreaAdminsPage } from './pages/AreaAdminsPage';
+import { canOpenNavItem, findNavItem } from './navigation';
 import { GovernancePage } from './pages/GovernancePage';
 import { EconomyLabPage } from './pages/EconomyLabPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -62,6 +64,12 @@ function AppRoot() {
 
 function RouteOutlet() {
   const { path } = useRouter();
+  const { scope } = useAuth();
+  if (path === '/' && scope && !scope.platform) {
+    return scope.grants.some((grant) => grant.powers.includes('destinations')) ? <DestinationsPage /> : <AnalyticsPage />;
+  }
+  const navItem = findNavItem(path);
+  if (navItem && !canOpenNavItem(navItem, scope)) return <section className="stitch-panel"><p className="eyebrow">Access denied</p><h1>Not available for your area</h1><p>Your account does not have permission to open this section.</p></section>;
 
   switch (path) {
     case '/':
@@ -72,6 +80,8 @@ function RouteOutlet() {
       return <QuestReviewsPage />;
     case '/destinations':
       return <DestinationsPage />;
+    case '/area-admins':
+      return <AreaAdminsPage />;
     case '/quests':
       return <QuestsPage />;
     case '/spot-reports':

@@ -27,6 +27,7 @@ export interface NavItem {
   icon: LucideIcon;
   description: string;
   available: boolean;
+  requires?: { platform?: true; power?: 'destinations' | 'quests_quizzes' | 'merchants_vouchers' | 'analytics' };
 }
 
 export interface NavSection {
@@ -76,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Compass,
         description: 'Published catalog, crowd capacity bands and emergency suppression.',
         available: true,
+        requires: { power: 'destinations' },
       },
       {
         path: '/quests',
@@ -97,6 +99,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Flag,
         description: 'Traveler-submitted destination reports, read-only until a resolution policy exists.',
         available: true,
+        requires: { power: 'destinations' },
       },
       {
         path: '/plaza-moderation',
@@ -177,6 +180,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: BarChart3,
         description: 'Web telemetry counters with explicit source labels.',
         available: true,
+        requires: { power: 'analytics' },
       },
       {
         path: '/insights/governance',
@@ -227,6 +231,14 @@ export const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    id: 'platform-admin',
+    label: 'Administration',
+    items: [
+      { path: '/area-admins', label: 'Area admins', icon: ShieldAlert,
+        description: 'Grant and revoke LGU area access.', available: true, requires: { platform: true } },
+    ],
+  },
 ];
 
 export const findNavItem = (path: string): NavItem | null => {
@@ -237,3 +249,15 @@ export const findNavItem = (path: string): NavItem | null => {
   }
   return null;
 };
+
+export interface NavigationScope { platform: boolean; grants: Array<{ area_id: string; area_name: string; powers: string[] }> }
+export const canOpenNavItem = (item: NavItem | null, scope: NavigationScope | null): boolean => {
+  if (!item || !scope || !item.available) return false;
+  if (item.requires?.platform) return scope.platform;
+  if (scope.platform || !item.requires) return scope.platform;
+  return Boolean(item.requires.power && scope.grants.some((grant) => grant.powers.includes(item.requires!.power!)));
+};
+
+export const visibleNavSections = (scope: NavigationScope | null): NavSection[] =>
+  NAV_SECTIONS.map((section) => ({ ...section, items: section.items.filter((item) => canOpenNavItem(item, scope)) }))
+    .filter((section) => section.items.length > 0);

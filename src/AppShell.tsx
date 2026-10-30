@@ -2,17 +2,20 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ExternalLink, LogOut, Menu, X } from 'lucide-react';
 import { Link, useRouter } from './router';
 import { useAuth } from './auth';
-import { NAV_SECTIONS, findNavItem } from './navigation';
+import { canOpenNavItem, findNavItem, visibleNavSections } from './navigation';
 
 const isActive = (path: string, itemPath: string): boolean =>
   itemPath === '/' ? path === '/' : path === itemPath || path.startsWith(`${itemPath}/`);
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { path } = useRouter();
-  const { profile, signOut } = useAuth();
+  const { profile, scope, selectedAreaId, setSelectedAreaId, signOut } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
   const travelerUrl = import.meta.env.VITE_TRAVELER_URL || '/app';
   const activeItem = findNavItem(path);
+  const sections = visibleNavSections(scope);
+  const activeGrant = scope?.grants.find((grant) => grant.area_id === selectedAreaId);
+  const activePowers = activeGrant?.powers || scope?.grants.flatMap((grant) => grant.powers) || [];
 
   useEffect(() => {
     setNavOpen(false);
@@ -51,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="shell-nav">
-          {NAV_SECTIONS.map((section) => {
+          {sections.map((section) => {
             const items = section.items.filter((item) => item.available);
             if (!items.length) return null;
             return (
@@ -105,6 +108,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <p className="shell-topbar-page">{activeItem?.label ?? 'Control Room'}</p>
           <div className="shell-user">
+            {scope && !scope.platform ? <div className="shell-user-meta">
+              {scope.grants.length > 1 ? <label>Area <select aria-label="Select area" value={selectedAreaId || ''} onChange={(event) => setSelectedAreaId(event.target.value || null)}>
+                {scope.grants.map((grant) => <option key={grant.area_id} value={grant.area_id}>{grant.area_name}</option>)}
+              </select></label> : <span>{scope.grants[0]?.area_name}</span>}
+              <span className="scope-chip">{activePowers.map((power) => power.replace(/_/g, ' ')).join(' · ')}</span>
+            </div> : null}
             {profile ? (
               <div className="shell-user-chip">
                 <span className="shell-user-avatar" aria-hidden="true">
@@ -112,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </span>
                 <span className="shell-user-meta">
                   <span className="shell-user-name">{profile.display_name || 'Administrator'}</span>
-                  <span className="shell-user-role">Administrator</span>
+                  <span className="shell-user-role">{profile.role === 'area_admin' ? 'Area administrator' : 'Platform administrator'}</span>
                 </span>
               </div>
             ) : null}

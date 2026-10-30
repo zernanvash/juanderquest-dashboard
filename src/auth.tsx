@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ApiError, apiFetch, getBearerToken, setBearerToken, setUnauthorizedListener } from './api/client';
+import type { NavigationScope } from './navigation';
 
 export interface AdminProfile {
   id: string;
@@ -24,6 +25,9 @@ export type AuthStatus = 'checking' | 'anonymous' | 'denied' | 'authenticated' |
 interface AuthValue {
   status: AuthStatus;
   profile: AdminProfile | null;
+  scope: NavigationScope | null;
+  selectedAreaId: string | null;
+  setSelectedAreaId: (areaId: string | null) => void;
   error: string;
   walletMode: string | null;
   signInWithEmail: (email: string, password: string, rememberMe: boolean) => Promise<void>;
@@ -42,17 +46,33 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('checking');
   const [profile, setProfile] = useState<AdminProfile | null>(null);
+  const [scope, setScope] = useState<NavigationScope | null>(null);
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [walletMode, setWalletMode] = useState<string | null>(null);
 
-  const applyProfile = useCallback((user: AdminProfile | null) => {
+  const applyProfile = useCallback(async (user: AdminProfile | null) => {
     if (!user) {
       setProfile(null);
+      setScope(null);
       setStatus('anonymous');
       return;
     }
     setProfile(user);
-    setStatus(user.role === 'admin' ? 'authenticated' : 'denied');
+    if (user.role !== 'admin' && user.role !== 'area_admin') {
+      setScope(null);
+      setStatus('denied');
+      return;
+    }
+    try {
+      const loaded = await apiFetch<NavigationScope>('/admin/me/scope');
+      setScope(loaded);
+      setSelectedAreaId(null);
+      setStatus('authenticated');
+    } catch {
+      setScope(null);
+      setStatus('denied');
+    }
   }, []);
 
   const bootstrap = useCallback(async () => {
@@ -60,14 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError('');
     try {
       const user = await apiFetch<AdminProfile>('/auth/me');
-      applyProfile(user);
+      await applyProfile(user);
     } catch (cause) {
       if (cause instanceof ApiError && cause.status !== 401 && cause.status !== 403) {
         setProfile(null);
         setError(cause.message);
         setStatus('unavailable');
       } else {
-        applyProfile(null);
+        await applyProfile(null);
       }
     }
   }, [applyProfile]);
@@ -75,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setUnauthorizedListener(() => {
       setBearerToken(null);
-      applyProfile(null);
+      void applyProfile(null);
     });
     void bootstrap();
     return () => setUnauthorizedListener(null);
@@ -99,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (result: { token?: string } | null) => {
       setBearerToken(result?.token ?? null);
       const user = await apiFetch<AdminProfile>('/auth/me');
-      applyProfile(user);
+      await applyProfile(user);
     },
     [applyProfile]
   );
@@ -160,13 +180,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The local session is cleared even if the server is unreachable.
     }
     setBearerToken(null);
-    applyProfile(null);
+    await applyProfile(null);
   }, [applyProfile]);
 
   const value = useMemo<AuthValue>(
     () => ({
       status,
       profile,
+      scope,
+      selectedAreaId,
+      setSelectedAreaId,
       error,
       walletMode,
       signInWithEmail,
@@ -175,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       retry: bootstrap,
     }),
-    [status, profile, error, walletMode, signInWithEmail, signInWithWallet, signInWithLocalWallet, signOut, bootstrap]
+    [status, profile, scope, selectedAreaId, error, walletMode, signInWithEmail, signInWithWallet, signInWithLocalWallet, signOut, bootstrap]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
