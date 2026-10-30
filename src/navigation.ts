@@ -96,6 +96,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: BookOpen,
         description: 'Location-bound quizzes granting Explorer XP, with draft authoring and lifecycle controls.',
         available: true,
+        requires: { power: 'quests_quizzes' },
       },
       {
         path: '/spot-reports',
@@ -137,6 +138,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Building2,
         description: 'Review merchant affiliation requests and provision workspaces.',
         available: true,
+        requires: { power: 'merchants_vouchers' },
       },
       {
         path: '/partners/merchants',
@@ -144,6 +146,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Store,
         description: 'Read-only directory and inspection of provisioned merchant workspaces.',
         available: true,
+        requires: { power: 'merchants_vouchers' },
       },
       {
         path: '/partners/vouchers',
@@ -151,6 +154,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Ticket,
         description: 'Current voucher offers available to travelers.',
         available: true,
+        requires: { power: 'merchants_vouchers' },
       },
     ],
   },
