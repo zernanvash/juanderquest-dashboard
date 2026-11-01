@@ -48,6 +48,8 @@ const adminFetchMock = (overrides: Record<string, unknown> = {}) =>
     if (url in overrides) return Promise.resolve(overrides[url]);
     if (url === '/api/v1/auth/me') return Promise.resolve(jsonResponse({ success: true, data: adminProfile }));
     if (url === '/api/v1/auth/wallet/config') return Promise.resolve(jsonResponse({ success: true, data: { mode: 'signature' } }));
+    // Plan 59: the shell loads the administrator's area scope after sign-in.
+    if (url === '/api/v1/admin/me/scope') return Promise.resolve(jsonResponse({ success: true, data: { platform: true, grants: [] } }));
     if (url === '/api/v1/ready') {
       return Promise.resolve(jsonResponse({ status: 'ready', ready: true, degraded: false, timestamp: new Date().toISOString(), dependencies: { postgres: { status: 'up', latency_ms: 1 } } }));
     }
@@ -127,6 +129,8 @@ describe('admin authentication and routed shell', () => {
       }
       if (url === '/api/v1/auth/login') return Promise.resolve(jsonResponse({ success: true, data: { token: 'session-token' } }));
       if (url === '/api/v1/auth/wallet/config') return Promise.resolve(jsonResponse({ success: true, data: { mode: 'signature' } }));
+    // Plan 59: the shell loads the administrator's area scope after sign-in.
+    if (url === '/api/v1/admin/me/scope') return Promise.resolve(jsonResponse({ success: true, data: { platform: true, grants: [] } }));
       if (url.startsWith('/api/v1/admin/submissions')) return Promise.resolve(jsonResponse({ success: true, data: [] }));
       if (url === '/api/v1/admin/spots') return Promise.resolve(jsonResponse({ success: true, data: [] }));
       if (url === '/api/v1/admin/spot-reports') return Promise.resolve(jsonResponse({ success: true, data: [] }));
