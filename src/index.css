@@ -2016,3 +2016,8 @@ a.chain-mono:hover { text-decoration: underline; }
 .quest-reviews-field-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #514532; }
 @media (max-width: 960px) { .quest-reviews-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) { .quest-reviews-task-head, .quest-reviews-photo { flex-direction: column; } .quest-reviews-dates { align-items: flex-start; } }
+
+/* Cosmetics previews (replaces unstyled Tailwind classes, 2026-11-15) */
+.procedural-banner-preview { position: relative; margin-top: 8px; overflow: hidden; border-radius: var(--radius-sm); }
+.procedural-banner-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.cosmetic-preview-slot { margin-top: 8px; }

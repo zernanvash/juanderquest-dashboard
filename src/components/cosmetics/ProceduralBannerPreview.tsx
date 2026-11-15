@@ -21,7 +21,7 @@ export function ProceduralBannerPreview({ asset, seed = 0, motion = 'auto', aspe
     return () => { active = false; dispose?.(); };
   }, [asset.style, generator, asset.palette, colorKey, seed, motion, aspect]);
 
-  return <div aria-label="Procedural banner preview" className={`relative mt-2 overflow-hidden rounded-lg ${className}`} style={{ aspectRatio: String(aspect), background: `linear-gradient(${asset.angle ?? 160}deg,${colors.slice(0, 2).join(',') || '#0f5e72,#06283a'})` }}>
-    <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 block h-full w-full" />
+  return <div aria-label="Procedural banner preview" className={`procedural-banner-preview ${className}`} style={{ aspectRatio: String(aspect), background: `linear-gradient(${asset.angle ?? 160}deg,${colors.slice(0, 2).join(',') || '#0f5e72,#06283a'})` }}>
+    <canvas ref={canvasRef} aria-hidden="true" className="procedural-banner-canvas" />
   </div>;
 }

@@ -7,9 +7,6 @@ import { describe, expect, it } from 'vitest';
 const TAILWIND_UTILITY =
   /(?<![\w-])(?:(?:text|bg|border|ring)-(?:stone|gray|slate|emerald|rose|amber|blue|purple|cyan|red|green)-\d{2,3}|rounded-(?:sm|md|lg|xl|2xl|3xl|full)|space-[xy]-\d|grid-cols-\d+|(?:p|px|py|pt|pb|m|mt|mb|gap)-\d+(?:\.\d)?|w-\d+|h-\d+)(?![\w-])/;
 
-// Older leftovers outside the quest-reviews fix; remove from this list when restyled.
-const KNOWN_LEFTOVERS = ['ProceduralBannerPreview.tsx', 'ShopCosmeticsPage.tsx'];
-
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
@@ -22,7 +19,6 @@ describe('dashboard styling', () => {
   it('uses no Tailwind utility classes', () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(join(__dirname))) {
-      if (KNOWN_LEFTOVERS.some((name) => file.endsWith(name))) continue;
       readFileSync(file, 'utf8')
         .split('\n')
         .forEach((line, index) => {

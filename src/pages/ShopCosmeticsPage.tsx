@@ -96,7 +96,7 @@ export function ShopCosmeticsPage() {
         {kind === 'name_color' && <label>Name colour<select value={asset.color} onChange={(e) => setAsset({ color: e.target.value })}>{PALETTE.map((color) => <option key={color} value={color}>{color}</option>)}</select></label>}
         <div className="form-actions"><button className="button button-approve" type="submit">{editingId ? 'Save changes' : 'Create item'}</button></div>
       </form>
-      {kind !== 'banner' || asset.style !== 'procedural' ? <div className="detail-drawer"><strong>Live preview</strong><div className="mt-2"><Swatch item={{ id: 'preview', name: name || 'Preview', kind, asset } as Item} /></div></div> : null}
+      {kind !== 'banner' || asset.style !== 'procedural' ? <div className="detail-drawer"><strong>Live preview</strong><div className="cosmetic-preview-slot"><Swatch item={{ id: 'preview', name: name || 'Preview', kind, asset } as Item} /></div></div> : null}
     </section>
     <section className="panel-section"><h2 className="section-title">Coming soon teasers</h2>{teasers.map((teaser, index) => <div key={teaser.id} className="form-grid" style={{ marginBottom: 10 }}><label>Title<input value={teaser.title} onChange={(e) => setTeasers((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} /></label><label>Description<input value={teaser.description} onChange={(e) => setTeasers((current) => current.map((item, i) => i === index ? { ...item, description: e.target.value } : item))} /></label><label>ETA<input value={teaser.eta_text || ''} onChange={(e) => setTeasers((current) => current.map((item, i) => i === index ? { ...item, eta_text: e.target.value } : item))} /></label></div>)}<button className="button button-secondary" onClick={() => void saveTeasers()}>Save teasers</button></section>
     {activeId && <div className="modal-backdrop" role="presentation"><section className="stitch-panel" role="dialog" aria-modal="true" aria-labelledby="grant-title"><h2 id="grant-title">Grant to traveler</h2><label className="settings-field">Traveler ID<input value={target} onChange={(e) => setTarget(e.target.value)} /></label><label className="settings-field">Reason (10 characters minimum)<input minLength={10} value={reason} onChange={(e) => setReason(e.target.value)} /></label><div className="form-actions"><button className="button button-approve" disabled={!target || reason.trim().length < 10} onClick={() => void grant()}>Grant item</button><button className="button button-secondary" onClick={() => setActiveId('')}>Cancel</button></div></section></div>}
@@ -109,7 +109,7 @@ function Swatch({ item }: { item: Item }) {
   }
   const isGradientBanner = item.kind === 'banner';
   if (isGradientBanner) {
-    return <span aria-label={`${item.name} preview swatch`} className="inline-block w-24 aspect-[2/1] rounded" style={{
+    return <span aria-label={`${item.name} preview swatch`} style={{
       display: 'block',
       width: 96,
       aspectRatio: '2 / 1',
