@@ -4,15 +4,17 @@ import { apiFetch } from '../api/client';
 import { describeError } from '../utils/errors';
 import {
   QUIZ_LANGUAGES,
+  QUIZ_QUESTION_TYPES,
   QuizDraftDefaults,
   QuizDraftForm,
+  applyQuestionType,
   createEmptyQuizDraft,
   toQuizPayload,
   validateQuizBasics,
   validateQuizDraft,
   validateQuizQuestions,
 } from '../utils/quizDraft';
-import type { AdminQuizDetail, Spot } from '../types';
+import type { AdminQuizDetail, CulturalQuizQuestionType, Spot } from '../types';
 
 type EditorStep = 'basics' | 'questions' | 'preview';
 
@@ -31,6 +33,7 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [spotPhotos, setSpotPhotos] = useState<Array<{ url: string; label: string }>>([]);
 
   useEffect(() => {
     if (mode !== 'edit' || !quizId) return;
@@ -51,6 +54,8 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
           cooldownHours: detail.version.cooldown_hours,
           isTest: detail.quiz.is_test,
           questions: questions.map((question) => ({
+            questionType: question.question_type ?? 'multiple_choice',
+            mediaUrl: question.media_url ?? '',
             questionText: question.question_text,
             explanation: question.explanation,
             sourceUrl: question.source_url || '',
@@ -79,6 +84,50 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [saving, onClose]);
+
+  useEffect(() => {
+    if (!draft.destinationId) {
+      setSpotPhotos([]);
+      return;
+    }
+    const baseSpot = spots.find((spot) => spot.id === draft.destinationId);
+    const seedList: Array<{ url: string; label: string }> = baseSpot?.image_url
+      ? [{ url: baseSpot.image_url, label: `${baseSpot.name} cover` }]
+      : [];
+    setSpotPhotos(seedList);
+
+    let active = true;
+    const loadPhotos = async () => {
+      try {
+        const detail = await apiFetch<{
+          name?: string;
+          image_url?: string;
+          attached_assets?: Array<{ url?: string; caption?: string | null; media_type?: string }>;
+        }>(`/spots/${draft.destinationId}`);
+        if (!active) return;
+        const collected: Array<{ url: string; label: string }> = [];
+        const seen = new Set<string>();
+        const pushPhoto = (url: string | undefined, label: string) => {
+          const clean = (url ?? '').trim();
+          if (!clean || seen.has(clean)) return;
+          seen.add(clean);
+          collected.push({ url: clean, label });
+        };
+        pushPhoto(detail.image_url ?? baseSpot?.image_url, `${detail.name ?? baseSpot?.name ?? 'Destination'} cover`);
+        for (const asset of detail.attached_assets ?? []) {
+          if (asset.media_type?.startsWith('video/')) continue;
+          pushPhoto(asset.url, asset.caption?.trim() || `Spot photo ${collected.length + 1}`);
+        }
+        setSpotPhotos(collected);
+      } catch {
+        // Keep seeded cover photo if spot detail fetch fails
+      }
+    };
+    void loadPhotos();
+    return () => {
+      active = false;
+    };
+  }, [draft.destinationId, spots]);
 
   const updateQuestion = useCallback((questionIndex: number, update: (question: QuizDraftForm['questions'][number]) => void) => {
     setDraft((current) => {
@@ -267,65 +316,202 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
 
         {!loading && step === 'questions' ? (
           <div className="quiz-question-list">
-            {draft.questions.map((question, questionIndex) => (
-              <fieldset key={questionIndex} className="quiz-question">
-                <legend>
-                  <Plus size={13} aria-hidden="true" /> Question {questionIndex + 1}
-                </legend>
-                <label className="quiz-field">
-                  <span>Question text</span>
-                  <input
-                    type="text"
-                    value={question.questionText}
-                    onChange={(event) => updateQuestion(questionIndex, (target) => { target.questionText = event.target.value; })}
-                  />
-                </label>
-                <div className="quiz-options">
-                  {question.options.map((option, optionIndex) => (
-                    <label key={optionIndex} className={`quiz-option${option.isCorrect ? ' is-correct' : ''}`}>
-                      <input
-                        type="radio"
-                        name={`correct-${questionIndex}`}
-                        checked={option.isCorrect}
-                        onChange={() =>
-                          updateQuestion(questionIndex, (target) => {
-                            target.options.forEach((candidate, index) => { candidate.isCorrect = index === optionIndex; });
-                          })
-                        }
-                        aria-label={`Mark option ${optionIndex + 1} as the correct answer`}
-                      />
-                      <input
-                        type="text"
-                        value={option.text}
-                        placeholder={`Option ${optionIndex + 1}`}
-                        onChange={(event) =>
-                          updateQuestion(questionIndex, (target) => { target.options[optionIndex].text = event.target.value; })
-                        }
-                        aria-label={`Option ${optionIndex + 1} text`}
-                      />
-                    </label>
-                  ))}
-                </div>
-                <p className="quiz-hint">Select the radio next to the single correct option.</p>
-                <label className="quiz-field">
-                  <span>Explanation (shown after submission)</span>
-                  <textarea
-                    rows={2}
-                    value={question.explanation}
-                    onChange={(event) => updateQuestion(questionIndex, (target) => { target.explanation = event.target.value; })}
-                  />
-                </label>
-                <label className="quiz-field">
-                  <span>Source URL (optional)</span>
-                  <input
-                    type="url"
-                    value={question.sourceUrl}
-                    placeholder="https://…"
-                    onChange={(event) => updateQuestion(questionIndex, (target) => { target.sourceUrl = event.target.value; })}
-                  />
-                </label>
-              </fieldset>
-            ))}
+            {draft.questions.map((question, questionIndex) => {
+              const qType: CulturalQuizQuestionType = question.questionType ?? 'multiple_choice';
+              return (
+                <fieldset key={questionIndex} className="quiz-question">
+                  <legend>
+                    <Plus size={13} aria-hidden="true" /> Question {questionIndex + 1}
+                  </legend>
+                  <label className="quiz-field">
+                    <span>Question type</span>
+                    <select
+                      aria-label={`Question ${questionIndex + 1} type`}
+                      value={qType}
+                      onChange={(event) => {
+                        const nextType = event.target.value as CulturalQuizQuestionType;
+                        setDraft((current) => ({
+                          ...current,
+                          questions: current.questions.map((item, idx) =>
+                            idx === questionIndex ? applyQuestionType(item, nextType) : item,
+                          ),
+                        }));
+                      }}
+                    >
+                      {QUIZ_QUESTION_TYPES.map((typeOption) => (
+                        <option key={typeOption.value} value={typeOption.value}>
+                          {typeOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="quiz-field">
+                    <span>Question text</span>
+                    <input
+                      type="text"
+                      value={question.questionText}
+                      onChange={(event) => updateQuestion(questionIndex, (target) => { target.questionText = event.target.value; })}
+                    />
+                  </label>
+
+                  {qType === 'photo_clue' ? (
+                    <div className="quiz-field">
+                      <span>Destination photo clue (pick an existing spot photo)</span>
+                      {spotPhotos.length === 0 ? (
+                        <p className="quiz-hint">
+                          This destination has no attached photos yet. Upload a spot photo first or choose another question type.
+                        </p>
+                      ) : (
+                        <div className="quiz-photo-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                          {spotPhotos.map((photo, photoIdx) => {
+                            const selected = question.mediaUrl === photo.url;
+                            return (
+                              <button
+                                key={photo.url}
+                                type="button"
+                                onClick={() => updateQuestion(questionIndex, (target) => { target.mediaUrl = photo.url; })}
+                                aria-pressed={selected}
+                                style={{
+                                  border: selected ? '2px solid var(--accent, #f59e0b)' : '1px solid rgba(255,255,255,0.16)',
+                                  borderRadius: '6px',
+                                  padding: '4px',
+                                  background: selected ? 'rgba(245,158,11,0.14)' : 'transparent',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  width: '96px',
+                                }}
+                              >
+                                <img
+                                  src={photo.url}
+                                  alt={photo.label}
+                                  style={{ width: '84px', height: '56px', objectFit: 'cover', borderRadius: '4px' }}
+                                />
+                                <span style={{ fontSize: '11px', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '84px' }}>
+                                  {photoIdx === 0 ? 'Cover' : `Photo ${photoIdx + 1}`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {question.mediaUrl ? (
+                        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <img
+                            src={question.mediaUrl}
+                            alt={`Selected clue for question ${questionIndex + 1}`}
+                            style={{ width: '120px', height: '76px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)' }}
+                          />
+                          <span className="quiz-hint">Selected destination photo</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {qType === 'sequence_order' ? (
+                    <>
+                      <div className="quiz-options">
+                        {question.options.map((option, optionIndex) => (
+                          <label key={optionIndex} className="quiz-option">
+                            <span style={{ minWidth: '52px', fontSize: '12px', fontWeight: 600 }}>Step {optionIndex + 1}</span>
+                            <input
+                              type="text"
+                              value={option.text}
+                              placeholder={`Step ${optionIndex + 1}`}
+                              onChange={(event) =>
+                                updateQuestion(questionIndex, (target) => { target.options[optionIndex].text = event.target.value; })
+                              }
+                              aria-label={`Step ${optionIndex + 1} text`}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                        {question.options.length < 4 ? (
+                          <button
+                            type="button"
+                            className="button-muted"
+                            onClick={() =>
+                              updateQuestion(questionIndex, (target) => {
+                                if (target.options.length < 4) target.options.push({ text: '', isCorrect: false });
+                              })
+                            }
+                          >
+                            + Add Step 4
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="button-muted"
+                            onClick={() =>
+                              updateQuestion(questionIndex, (target) => {
+                                if (target.options.length > 3) target.options.pop();
+                              })
+                            }
+                          >
+                            Remove Step 4
+                          </button>
+                        )}
+                      </div>
+                      <p className="quiz-hint">Enter items in the exact correct order; the app scrambles them for players.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="quiz-options">
+                        {question.options.map((option, optionIndex) => (
+                          <label key={optionIndex} className={`quiz-option${option.isCorrect ? ' is-correct' : ''}`}>
+                            <input
+                              type="radio"
+                              name={`correct-${questionIndex}`}
+                              checked={option.isCorrect}
+                              onChange={() =>
+                                updateQuestion(questionIndex, (target) => {
+                                  target.options.forEach((candidate, index) => { candidate.isCorrect = index === optionIndex; });
+                                })
+                              }
+                              aria-label={`Mark option ${optionIndex + 1} as the correct answer`}
+                            />
+                            <input
+                              type="text"
+                              value={option.text}
+                              placeholder={qType === 'true_false' ? (optionIndex === 0 ? 'Fact' : 'Myth') : `Option ${optionIndex + 1}`}
+                              onChange={(event) =>
+                                updateQuestion(questionIndex, (target) => { target.options[optionIndex].text = event.target.value; })
+                              }
+                              aria-label={`Option ${optionIndex + 1} text`}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      <p className="quiz-hint">
+                        {qType === 'true_false'
+                          ? 'Select whether Fact or Myth is the correct answer.'
+                          : 'Select the radio next to the single correct option.'}
+                      </p>
+                    </>
+                  )}
+
+                  <label className="quiz-field">
+                    <span>Explanation (shown after submission)</span>
+                    <textarea
+                      rows={2}
+                      value={question.explanation}
+                      onChange={(event) => updateQuestion(questionIndex, (target) => { target.explanation = event.target.value; })}
+                    />
+                  </label>
+                  <label className="quiz-field">
+                    <span>Source URL (optional)</span>
+                    <input
+                      type="url"
+                      value={question.sourceUrl}
+                      placeholder="https://…"
+                      onChange={(event) => updateQuestion(questionIndex, (target) => { target.sourceUrl = event.target.value; })}
+                    />
+                  </label>
+                </fieldset>
+              );
+            })}
           </div>
         ) : null}
 
@@ -339,16 +525,31 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
             </p>
             <p className="quiz-preview-description">{draft.description}</p>
             <ol className="quiz-preview-questions">
-              {draft.questions.map((question, index) => (
-                <li key={index}>
-                  <p className="quiz-preview-question">{question.questionText}</p>
-                  <ul>
-                    {question.options.map((option, optionIndex) => (
-                      <li key={optionIndex}>{option.text}</li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
+              {draft.questions.map((question, index) => {
+                const typeLabel = QUIZ_QUESTION_TYPES.find((t) => t.value === (question.questionType ?? 'multiple_choice'))?.label ?? 'Multiple choice';
+                return (
+                  <li key={index}>
+                    <p className="quiz-preview-question">
+                      <strong>[{typeLabel}]</strong> {question.questionText}
+                    </p>
+                    {question.questionType === 'photo_clue' && question.mediaUrl ? (
+                      <img
+                        src={question.mediaUrl}
+                        alt={`Question ${index + 1} photo clue`}
+                        style={{ width: '160px', height: '100px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
+                      />
+                    ) : null}
+                    <ul>
+                      {question.options.map((option, optionIndex) => (
+                        <li key={optionIndex}>
+                          {question.questionType === 'sequence_order' ? `Step ${optionIndex + 1}: ` : ''}
+                          {option.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
             </ol>
             <p className="quiz-hint">
               <Eye size={13} aria-hidden="true" /> This is the traveler view. Correct answers and explanations are never returned by

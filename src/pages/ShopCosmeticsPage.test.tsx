@@ -114,9 +114,9 @@ describe('ShopCosmeticsPage', () => {
     render(<ShopCosmeticsPage />);
     const swatch = await screen.findByLabelText('Sunset Gradient preview swatch');
     expect(swatch).toBeTruthy();
-    expect(swatch.className).toContain('w-24');
-    expect(swatch.className).toContain('aspect-[2/1]');
-    expect(swatch.className).toContain('rounded');
+    expect(swatch.style.width).toBe('96px');
+    expect(swatch.style.aspectRatio).toBe('2 / 1');
+    expect(swatch.style.borderRadius).toBe('6px');
     expect(swatch.style.background).toMatch(/linear-gradient\(90deg, ?(#ff7e5f|rgb\(255, 126, 95\)), ?(#feb47b|rgb\(254, 180, 123\))\)/);
   });
 });

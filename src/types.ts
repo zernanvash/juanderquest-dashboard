@@ -116,6 +116,7 @@ export interface Voucher {
 
 export type CulturalQuizStatus = 'draft' | 'published' | 'paused' | 'archived';
 export type CulturalQuizLanguage = 'en' | 'fil' | 'ilo' | 'pag';
+export type CulturalQuizQuestionType = 'multiple_choice' | 'true_false' | 'photo_clue' | 'sequence_order';
 
 export interface AdminQuiz {
   id: string;
@@ -158,6 +159,8 @@ export interface AdminQuizOption {
 export interface AdminQuizQuestion {
   id: string;
   ordinal: number;
+  question_type?: CulturalQuizQuestionType;
+  media_url?: string | null;
   question_text: string;
   explanation: string;
   source_url?: string | null;
