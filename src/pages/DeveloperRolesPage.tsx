@@ -3,11 +3,12 @@ import { Search, UserCog } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../auth';
 import { PageHeader } from '../components/PageState';
+import { Link } from '../router';
 import { describeError } from '../utils/errors';
 
 // Developer dashboard (owner 2026-10-29): developers see every account's role and change it.
 // Every change needs a reason and lands in the role audit. Nobody can change their own role.
-type Role = 'user' | 'admin' | 'qa';
+type Role = 'user' | 'admin' | 'qa' | 'area_admin';
 type Scope = 'platform' | 'area' | 'developer' | null;
 export type Account = {
   id: string; display_name: string; email: string | null; handle: string | null; wallet_address: string | null;
@@ -23,13 +24,14 @@ export const ACCESS_OPTIONS: { value: string; label: string; role: Role; scope: 
   { value: 'user', label: 'Traveler', role: 'user', scope: null, hint: 'The traveler app only.' },
   { value: 'qa', label: 'QA evaluator', role: 'qa', scope: null, hint: 'Can see synthetic test data.' },
   { value: 'admin', label: 'Admin', role: 'admin', scope: null, hint: 'This control room.' },
-  { value: 'admin:area', label: 'Area admin', role: 'admin', scope: 'area', hint: 'Admin for an area (no JuanChoice perk controls).' },
   { value: 'admin:platform', label: 'JuanderQuest staff', role: 'admin', scope: 'platform', hint: 'Admin + JuanChoice perk controls.' },
   { value: 'admin:developer', label: 'Developer', role: 'admin', scope: 'developer', hint: 'Everything, including changing roles.' },
 ];
 export const accessValue = (role: Role, scope: Scope) => (role === 'admin' && scope ? `admin:${scope}` : role);
 export const accessLabel = (role: Role, scope: Scope) =>
-  ACCESS_OPTIONS.find(option => option.value === accessValue(role, scope))?.label ?? role;
+  role === 'area_admin'
+    ? 'Area admin'
+    : (ACCESS_OPTIONS.find(option => option.value === accessValue(role, scope))?.label ?? role);
 const shortWallet = (wallet: string | null) => (wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : '—');
 
 export function DeveloperRolesPage() {
@@ -137,7 +139,13 @@ export function DeveloperRolesPage() {
                     <span>{account.email ?? 'no email'} · {shortWallet(account.wallet_address)}</span>
                   </div>
                   <span className={`dev-roles-badge is-${account.admin_scope ?? account.role}`}>{accessLabel(account.role, account.admin_scope)}</span>
-                  {self ? <span className="settings-description">Another developer must change your own role.</span> : (
+                  {self ? (
+                    <span className="settings-description">Another developer must change your own role.</span>
+                  ) : account.role === 'area_admin' ? (
+                    <span className="settings-description">
+                      Area admin — manage in <Link to="/area-admins">Area admins</Link>
+                    </span>
+                  ) : (
                     <div className="dev-roles-edit">
                       <label className="quiz-field">
                         <span>Access</span>
