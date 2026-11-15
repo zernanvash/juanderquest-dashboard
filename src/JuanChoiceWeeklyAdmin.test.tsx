@@ -81,7 +81,7 @@ describe('Plan 65 weekly JuanChoice admin', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add festival' }));
     expect(await screen.findByText('Bangus Festival')).toBeTruthy();
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
-    expect(JSON.parse(String(post?.[1]?.body))).toEqual({ name: 'Bangus Festival', municipality: 'Dagupan', starts_on: '2026-04-20', ends_on: '2026-05-01', is_test: false });
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({ name: 'Bangus Festival', municipality: 'Dagupan', starts_on: '2026-04-20', ends_on: '2026-05-01', boosts_voting: true, is_test: false });
     fireEvent.click(within(screen.getByRole('list', { name: 'Festivals' })).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(screen.getByText(/No festivals yet/)).toBeTruthy());
   });
