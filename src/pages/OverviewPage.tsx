@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Compass, Flag, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useAuth } from '../auth';
 import { Link } from '../router';
+import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import type { Spot, SpotReport, Submission } from '../types';
@@ -30,6 +32,12 @@ interface OverviewData {
 const AWAITING_AFFILIATE = new Set(['received', 'in_review', 'needs_changes']);
 
 export function OverviewPage() {
+  // Plan 92b: area admins see only the queues their powers allow, filtered by the area switcher.
+  const { scope, selectedAreaId } = useAuth();
+  const platform = Boolean(scope?.platform);
+  const powers = new Set(scope?.grants.flatMap((grant) => grant.powers) ?? []);
+  const canDestinations = platform || powers.has('destinations');
+  const canMerchants = platform || powers.has('merchants_vouchers');
   const [data, setData] = useState<OverviewData | null>(null);
   const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [readinessError, setReadinessError] = useState('');
@@ -39,19 +47,25 @@ export function OverviewPage() {
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     const errors: string[] = [];
+    const skip = Promise.resolve(null);
     const [submissions, spots, affiliates, reports, health] = await Promise.allSettled([
-      apiFetch<Submission[]>('/admin/submissions?status=pending', { signal }),
-      apiFetch<Spot[]>('/admin/spots', { signal }),
-      apiFetch<PendingAffiliateProjection[]>('/admin/affiliate/applications', { signal }),
-      apiFetch<SpotReport[]>('/admin/spot-reports', { signal }),
-      fetch('/api/v1/ready', { signal }).then(async (response) => {
-        const payload = (await response.json()) as ReadinessReport;
-        return payload;
-      }),
+      platform ? apiFetch<Submission[]>('/admin/submissions?status=pending', { signal }) : skip,
+      canDestinations ? apiFetch<Spot[]>(withArea('/admin/spots', selectedAreaId), { signal }) : skip,
+      canMerchants
+        ? apiFetch<PendingAffiliateProjection[]>(withArea('/admin/affiliate/applications', selectedAreaId), { signal })
+        : skip,
+      canDestinations ? apiFetch<SpotReport[]>(withArea('/admin/spot-reports', selectedAreaId), { signal }) : skip,
+      platform
+        ? fetch('/api/v1/ready', { signal }).then(async (response) => {
+            const payload = (await response.json()) as ReadinessReport;
+            return payload;
+          })
+        : skip,
     ]);
 
-    const countOf = <T,>(result: PromiseSettledResult<T[]>, label: string, filter?: (item: T) => boolean): number | null => {
+    const countOf = <T,>(result: PromiseSettledResult<T[] | null>, label: string, filter?: (item: T) => boolean): number | null => {
       if (result.status === 'fulfilled') {
+        if (result.value === null) return null;
         return filter ? result.value.filter(filter).length : result.value.length;
       }
       errors.push(`${label} could not be loaded: ${describeError(result.reason)}`);
@@ -78,7 +92,7 @@ export function OverviewPage() {
       setLastUpdated(new Date().toLocaleTimeString());
       setLoading(false);
     }
-  }, []);
+  }, [platform, canDestinations, canMerchants, selectedAreaId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,43 +123,43 @@ export function OverviewPage() {
       ) : null}
 
       <div className="overview-grid">
-        <Link to="/submissions" className="stitch-card overview-card">
+        {platform ? <Link to="/submissions" className="stitch-card overview-card">
           <span className="overview-card-icon overview-icon-pending">
             <ClipboardCheck size={18} aria-hidden="true" />
           </span>
           <p className="overview-card-label">Pending proof submissions</p>
           <p className="overview-card-value">{loading && data === null ? '…' : data?.pendingSubmissions ?? 'Unavailable'}</p>
           <p className="overview-card-hint">Open the proof review queue</p>
-        </Link>
+        </Link> : null}
 
-        <Link to="/destinations" className="stitch-card overview-card">
+        {canDestinations ? <Link to="/destinations" className="stitch-card overview-card">
           <span className="overview-card-icon overview-icon-review">
             <Compass size={18} aria-hidden="true" />
           </span>
           <p className="overview-card-label">Destinations needing attention</p>
           <p className="overview-card-value">{loading && data === null ? '…' : data?.destinationsNeedingAttention ?? 'Unavailable'}</p>
           <p className="overview-card-hint">Unpublished or recommendation-suppressed destinations</p>
-        </Link>
+        </Link> : null}
 
-        <Link to="/partners/affiliates" className="stitch-card overview-card">
+        {canMerchants ? <Link to="/partners/affiliates" className="stitch-card overview-card">
           <span className="overview-card-icon overview-icon-affiliate">
             <Building2 size={18} aria-hidden="true" />
           </span>
           <p className="overview-card-label">Affiliate applications awaiting decision</p>
           <p className="overview-card-value">{loading && data === null ? '…' : data?.affiliateQueue ?? 'Unavailable'}</p>
           <p className="overview-card-hint">Received, in review or needing applicant changes</p>
-        </Link>
+        </Link> : null}
 
-        <Link to="/spot-reports" className="stitch-card overview-card">
+        {canDestinations ? <Link to="/spot-reports" className="stitch-card overview-card">
           <span className="overview-card-icon overview-icon-report">
             <Flag size={18} aria-hidden="true" />
           </span>
           <p className="overview-card-label">Pending destination reports</p>
           <p className="overview-card-value">{loading && data === null ? '…' : data?.openReports ?? 'Unavailable'}</p>
-          <p className="overview-card-hint">Read-only until a resolution policy exists</p>
-        </Link>
+          <p className="overview-card-hint">Mark them reviewed or dismissed</p>
+        </Link> : null}
 
-        <div className="stitch-card overview-card">
+        {platform ? <div className="stitch-card overview-card">
           <span className={`overview-card-icon ${readiness?.ready ? 'overview-icon-ok' : 'overview-icon-warn'}`}>
             {readinessError || !readiness?.ready ? <AlertTriangle size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
           </span>
@@ -160,7 +174,7 @@ export function OverviewPage() {
                   .join(' · ')
               : readinessError || 'Readiness probe'}
           </p>
-        </div>
+        </div> : null}
       </div>
 
       <p className="overview-timestamp" role="status">

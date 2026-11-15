@@ -349,7 +349,7 @@ describe('admin authentication and routed shell', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/queue was refreshed/i);
   });
 
-  it('renders destination reports as a read-only page', async () => {
+  it('renders destination reports with resolve controls on pending cards', async () => {
     window.history.replaceState(null, '', '/#/spot-reports');
     vi.stubGlobal('fetch', adminFetchMock({
       '/api/v1/admin/spot-reports': jsonResponse({
@@ -383,9 +383,10 @@ describe('admin authentication and routed shell', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /destination reports/i })).toBeInTheDocument();
     expect(await screen.findByText('Patar White Beach')).toBeInTheDocument();
     expect(screen.getByText('Misleading photo')).toBeInTheDocument();
-    expect(screen.getByText(/This view is read-only/i)).toBeInTheDocument();
+    expect(screen.getByText(/every decision is audited/i)).toBeInTheDocument();
     const reportCard = screen.getByText('Misleading photo').closest('article');
     expect(reportCard).not.toBeNull();
-    expect(reportCard?.querySelector('button')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
   });
 });

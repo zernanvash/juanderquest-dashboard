@@ -30,7 +30,12 @@ export interface NavItem {
   icon: LucideIcon;
   description: string;
   available: boolean;
-  requires?: { platform?: true; power?: 'destinations' | 'quests_quizzes' | 'merchants_vouchers' | 'analytics' };
+  requires?: {
+    platform?: true;
+    /** Plan 92b: any administrator with at least one area grant (or platform staff). */
+    anyGrant?: true;
+    power?: 'destinations' | 'quests_quizzes' | 'merchants_vouchers' | 'analytics';
+  };
   /** Shown only to developers (admin_scope='developer'). */
   developerOnly?: boolean;
 }
@@ -55,6 +60,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         description: 'Pending work, queue health and quick actions.',
         available: true,
+        requires: { anyGrant: true },
       },
     ],
   },
@@ -88,8 +94,17 @@ export const NAV_SECTIONS: NavSection[] = [
         path: '/quests',
         label: 'Quests',
         icon: MapPin,
-        description: 'Read-only oversight of active and authored quests.',
+        description: 'Every quest in your areas, with pause and publish.',
         available: true,
+        requires: { power: 'quests_quizzes' },
+      },
+      {
+        path: '/stamps',
+        label: 'Stamps & Question of the Day',
+        icon: Sparkles,
+        description: 'Daily missions, the Question of the Day bank and its calendar.',
+        available: true,
+        requires: { platform: true },
       },
       {
         path: '/quizzes',
@@ -103,7 +118,7 @@ export const NAV_SECTIONS: NavSection[] = [
         path: '/spot-reports',
         label: 'Destination reports',
         icon: Flag,
-        description: 'Traveler-submitted destination reports, read-only until a resolution policy exists.',
+        description: 'Traveler-submitted destination reports; mark them reviewed or dismissed with a note.',
         available: true,
         requires: { power: 'destinations' },
       },
@@ -279,6 +294,7 @@ export interface NavigationScope { platform: boolean; grants: Array<{ area_id: s
 export const canOpenNavItem = (item: NavItem | null, scope: NavigationScope | null): boolean => {
   if (!item || !scope || !item.available) return false;
   if (item.requires?.platform) return scope.platform;
+  if (item.requires?.anyGrant) return scope.platform || scope.grants.length > 0;
   if (scope.platform || !item.requires) return scope.platform;
   return Boolean(item.requires.power && scope.grants.some((grant) => grant.powers.includes(item.requires!.power!)));
 };

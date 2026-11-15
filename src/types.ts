@@ -85,6 +85,9 @@ export interface SpotReport {
   details?: string;
   status: 'pending' | 'reviewed' | 'dismissed';
   created_at: string;
+  resolved_by?: string;
+  resolved_at?: string;
+  resolution_note?: string;
 }
 
 export interface Spot {

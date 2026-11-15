@@ -11,6 +11,7 @@ import { QuestReviewsPage } from './pages/QuestReviewsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
+import { StampsPage } from './pages/StampsPage';
 import { PlazaModerationPage } from './pages/PlazaModerationPage';
 import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
@@ -68,9 +69,6 @@ function AppRoot() {
 function RouteOutlet() {
   const { path } = useRouter();
   const { scope } = useAuth();
-  if (path === '/' && scope && !scope.platform) {
-    return scope.grants.some((grant) => grant.powers.includes('destinations')) ? <DestinationsPage /> : <AnalyticsPage />;
-  }
   const navItem = findNavItem(path);
   if (navItem && !canOpenNavItem(navItem, scope)) return <section className="stitch-panel"><p className="eyebrow">Access denied</p><h1>Not available for your area</h1><p>Your account does not have permission to open this section.</p></section>;
 
@@ -89,6 +87,8 @@ function RouteOutlet() {
       return <QuestsPage />;
     case '/spot-reports':
       return <SpotReportsPage />;
+    case '/stamps':
+      return <StampsPage />;
     case '/plaza-moderation':
       return <PlazaModerationPage />;
     case '/quizzes':

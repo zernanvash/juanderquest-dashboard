@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { BarChart3, TrendingUp, Users, MousePointerClick, Eye, Compass, Calendar, ArrowUpRight } from 'lucide-react';
 import { apiFetch, isAuthError } from './api/client';
+import { useSelectedAreaId } from './auth';
+import { withArea } from './utils/areaQuery';
 
 interface Summary {
   days: number;
@@ -20,6 +22,7 @@ export function WebAnalyticsDashboard({
   onUnauthorized?: () => void;
 }) {
   const [days, setDays] = useState(30);
+  const selectedAreaId = useSelectedAreaId();
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,7 +32,7 @@ export function WebAnalyticsDashboard({
     const controller = new AbortController();
     setLoading(true);
     setError('');
-    apiFetch<Summary>(`/admin/analytics?days=${days}`, { token, signal: controller.signal })
+    apiFetch<Summary>(withArea(`/admin/analytics?days=${days}`, selectedAreaId), { token, signal: controller.signal })
       .then((summary) => {
         setData(summary);
       })
@@ -45,7 +48,7 @@ export function WebAnalyticsDashboard({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [days, token, onUnauthorized]);
+  }, [days, token, onUnauthorized, selectedAreaId]);
 
   // SVG Chart Geometry calculations
   const chartData = useMemo(() => {

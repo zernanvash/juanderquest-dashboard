@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Store } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useSelectedAreaId } from '../auth';
+import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import type { Voucher } from '../types';
 
 export function VouchersPage() {
+  const selectedAreaId = useSelectedAreaId();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,7 +18,7 @@ export function VouchersPage() {
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<Voucher[]>('/admin/vouchers', { signal });
+      const data = await apiFetch<Voucher[]>(withArea('/admin/vouchers', selectedAreaId), { signal });
       setVouchers(Array.isArray(data) ? data : []);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return;
@@ -23,7 +26,7 @@ export function VouchersPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [selectedAreaId]);
 
   const setAvailability = async (voucher: Voucher, availability: 'live' | 'preview') => {
     setSavingId(voucher.id); setError('');

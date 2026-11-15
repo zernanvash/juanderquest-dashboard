@@ -111,6 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="shell-user">
             {scope && !scope.platform ? <div className="shell-user-meta">
               {scope.grants.length > 1 ? <label>Area <select aria-label="Select area" value={selectedAreaId || ''} onChange={(event) => setSelectedAreaId(event.target.value || null)}>
+                <option value="">All my areas</option>
                 {scope.grants.map((grant) => <option key={grant.area_id} value={grant.area_id}>{grant.area_name}</option>)}
               </select></label> : <span>{scope.grants[0]?.area_name}</span>}
               <span className="scope-chip">{activePowers.map((power) => power.replace(/_/g, ' ')).join(' · ')}</span>

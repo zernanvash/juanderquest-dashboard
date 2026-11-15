@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, Store, X } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useSelectedAreaId } from '../auth';
+import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import type { AdminMerchantDetail, AdminMerchantListItem } from '../types';
 
 export function MerchantsPage() {
+  const selectedAreaId = useSelectedAreaId();
   const [merchants, setMerchants] = useState<AdminMerchantListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,7 +21,7 @@ export function MerchantsPage() {
     try {
       setLoading(true);
       setError('');
-      const data = await apiFetch<AdminMerchantListItem[]>('/admin/merchants', { signal });
+      const data = await apiFetch<AdminMerchantListItem[]>(withArea('/admin/merchants', selectedAreaId), { signal });
       setMerchants(data);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return;
@@ -26,7 +29,7 @@ export function MerchantsPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [selectedAreaId]);
 
   useEffect(() => {
     const controller = new AbortController();

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Flag } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useSelectedAreaId } from '../auth';
 import { useRouter } from '../router';
+import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import type { Spot, SpotReport } from '../types';
@@ -22,7 +24,11 @@ const REASON_LABELS: Record<SpotReport['reason'], string> = {
 
 export function SpotReportsPage() {
   const { query, navigate } = useRouter();
+  const selectedAreaId = useSelectedAreaId();
   const statusFilter = parseStatus(query.get('status'));
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
 
   const [reports, setReports] = useState<SpotReport[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
@@ -34,8 +40,8 @@ export function SpotReportsPage() {
       setLoading(true);
       setError('');
       const [reportData, spotData] = await Promise.all([
-        apiFetch<SpotReport[]>('/admin/spot-reports', { signal }),
-        apiFetch<Spot[]>('/admin/spots', { signal }),
+        apiFetch<SpotReport[]>(withArea('/admin/spot-reports', selectedAreaId), { signal }),
+        apiFetch<Spot[]>(withArea('/admin/spots', selectedAreaId), { signal }),
       ]);
       setReports(reportData);
       setSpots(spotData);
@@ -45,7 +51,28 @@ export function SpotReportsPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [selectedAreaId]);
+
+  const resolve = async (report: SpotReport, status: 'reviewed' | 'dismissed') => {
+    const note = (notes[report.id] ?? '').trim();
+    if (note.length < 5) {
+      setActionError('Write a note of at least 5 characters before resolving a report.');
+      return;
+    }
+    setSaving(report.id);
+    setActionError('');
+    try {
+      const updated = await apiFetch<SpotReport>(`/admin/spot-reports/${report.id}`, {
+        method: 'PATCH',
+        body: { status, resolution_note: note },
+      });
+      setReports((current) => current.map((item) => (item.id === report.id ? updated : item)));
+    } catch (cause) {
+      setActionError(describeError(cause, 'Unable to update the report.'));
+    } finally {
+      setSaving(null);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,13 +87,14 @@ export function SpotReportsPage() {
     <div>
       <PageHeader
         title="Destination reports"
-        description="Traveler-submitted destination reports for awareness. This view is read-only: no resolution contract exists yet, so reports cannot be marked reviewed or dismissed from the dashboard."
+        description="Traveler-submitted destination reports. Mark each one reviewed or dismissed with a short note; every decision is audited. Use the Destinations page to unpublish or suppress a destination."
       />
 
-      <div className="readonly-banner" role="note">
-        <Flag size={15} aria-hidden="true" />
-        Moderation actions on reports are deferred until a resolution policy and audit contract are approved. Use the Destinations page for existing emergency unpublish and suppression controls.
-      </div>
+      {actionError ? (
+        <div className="load-error" role="alert">
+          {actionError}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="load-error" role="alert">
@@ -119,6 +147,30 @@ export function SpotReportsPage() {
                   <span>Reported {new Date(report.created_at).toLocaleString()}</span>
                   {report.reporter_name ? <span>By {report.reporter_name}</span> : <span>Anonymous report</span>}
                 </div>
+                {report.status === 'pending' ? (
+                  <div className="report-actions">
+                    <label>
+                      Resolution note
+                      <textarea
+                        aria-label={`Resolution note for report ${report.id}`}
+                        value={notes[report.id] ?? ''}
+                        maxLength={500}
+                        onChange={(event) => setNotes((current) => ({ ...current, [report.id]: event.target.value }))}
+                      />
+                    </label>
+                    <button type="button" disabled={saving === report.id} onClick={() => void resolve(report, 'reviewed')}>
+                      Mark reviewed
+                    </button>
+                    <button type="button" disabled={saving === report.id} onClick={() => void resolve(report, 'dismissed')}>
+                      Dismiss
+                    </button>
+                  </div>
+                ) : report.resolution_note ? (
+                  <p className="report-resolution">
+                    {report.resolution_note}
+                    {report.resolved_at ? ` · ${new Date(report.resolved_at).toLocaleString()}` : ''}
+                  </p>
+                ) : null}
               </article>
             );
           })}

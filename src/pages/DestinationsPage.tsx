@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Compass } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useSelectedAreaId } from '../auth';
+import { withArea } from '../utils/areaQuery';
 import { useRouter } from '../router';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
@@ -13,6 +15,7 @@ const parseStatus = (value: string | null): StatusFilter =>
   value === 'published' || value === 'needs_review' || value === 'unpublished' ? value : 'all';
 
 export function DestinationsPage() {
+  const selectedAreaId = useSelectedAreaId();
   const { query, navigate } = useRouter();
   const statusFilter = parseStatus(query.get('status'));
 
@@ -26,7 +29,7 @@ export function DestinationsPage() {
     try {
       setLoading(true);
       setListError('');
-      const data = await apiFetch<Spot[]>('/admin/spots', { signal });
+      const data = await apiFetch<Spot[]>(withArea('/admin/spots', selectedAreaId), { signal });
       setSpots(data);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return;
@@ -34,7 +37,7 @@ export function DestinationsPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [selectedAreaId]);
 
   useEffect(() => {
     const controller = new AbortController();

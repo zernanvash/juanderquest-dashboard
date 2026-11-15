@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ApiError, apiFetch } from './api/client';
+import { useSelectedAreaId } from './auth';
+import { withArea } from './utils/areaQuery';
 import { 
   Building2, 
   CheckCircle2, 
@@ -55,6 +57,7 @@ interface AffiliateReviewCenterProps {
 }
 
 export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
+  const selectedAreaId = useSelectedAreaId();
   const [applications, setApplications] = useState<AffiliateApplication[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
         ? '/admin/affiliate/applications'
         : `/admin/affiliate/applications?status=${statusFilter}`;
       
-      const data = await apiFetch<AffiliateApplication[]>(path, { token });
+      const data = await apiFetch<AffiliateApplication[]>(withArea(path, selectedAreaId), { token });
       setApplications(data);
     } catch (err: any) {
       setError(err.message || 'Unable to connect to server');
@@ -91,7 +94,7 @@ export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
 
   useEffect(() => {
     fetchApplications();
-  }, [statusFilter]);
+  }, [statusFilter, selectedAreaId]);
 
   const openDetailModal = async (app: AffiliateApplication) => {
     setSelectedApp(app);

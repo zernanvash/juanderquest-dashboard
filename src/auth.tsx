@@ -213,6 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/** Plan 92b: the area switcher's choice, or null outside the provider (page tests, embedded views). */
+export function useSelectedAreaId(): string | null {
+  return useContext(AuthContext)?.selectedAreaId ?? null;
+}
+
 export function useAuth(): AuthValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used inside AuthProvider');

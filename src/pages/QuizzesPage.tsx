@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Archive, BookOpen, PauseCircle, PlayCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { useSelectedAreaId } from '../auth';
+import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { QuizEditor } from '../components/QuizEditor';
 import { describeError } from '../utils/errors';
@@ -22,6 +24,7 @@ const LIFECYCLE_EFFECTS = [
 ];
 
 export function QuizzesPage() {
+  const selectedAreaId = useSelectedAreaId();
   const [quizzes, setQuizzes] = useState<AdminQuizListItem[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +39,8 @@ export function QuizzesPage() {
       setLoading(true);
       setError('');
       const [quizList, spotList, settings] = await Promise.all([
-        apiFetch<AdminQuizListItem[]>('/admin/quizzes', { signal }),
-        apiFetch<Spot[]>('/admin/spots', { signal }),
+        apiFetch<AdminQuizListItem[]>(withArea('/admin/quizzes', selectedAreaId), { signal }),
+        apiFetch<Spot[]>(withArea('/admin/spots', selectedAreaId), { signal }),
         apiFetch<SettingsSnapshot>('/admin/settings', { signal }).catch(() => null),
       ]);
       setQuizzes(quizList);
@@ -57,7 +60,7 @@ export function QuizzesPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [selectedAreaId]);
 
   useEffect(() => {
     const controller = new AbortController();
