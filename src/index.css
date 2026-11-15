@@ -1969,3 +1969,50 @@ a.chain-mono:hover { text-decoration: underline; }
 .dev-roles-badge.is-admin, .dev-roles-badge.is-area { background: rgba(176,137,104,.2); color: #6b4423; }
 .dev-roles-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .dev-roles-edit .quiz-field { min-width: 160px; }
+
+/* Quest attempt reviews (replaces unstyled Tailwind classes, 2026-11-15) */
+.quest-reviews-layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+.quest-reviews-list { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.quest-reviews-list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.quest-reviews-section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: #9c8a72; }
+.quest-reviews-attempts { display: flex; flex-direction: column; gap: 10px; }
+.quest-reviews-attempt { width: 100%; text-align: left; padding: 14px 16px; cursor: pointer; font: inherit; color: inherit; }
+.quest-reviews-attempt.is-selected { border-color: #2d6a4f; background: #eef6f1; box-shadow: 0 0 0 1px #2d6a4f; }
+.quest-reviews-attempt-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.quest-reviews-attempt-text { min-width: 0; }
+.quest-reviews-attempt-title { font-size: 14px; font-weight: 800; line-height: 1.35; color: #582f0e; overflow-wrap: anywhere; }
+.quest-reviews-attempt-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.quest-reviews-attempt-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e3dfd5; font-size: 12px; color: #837560; }
+.quest-reviews-attempt-foot strong { color: #514532; }
+.quest-reviews-meta { font-size: 12px; color: #514532; margin-top: 3px; line-height: 1.5; }
+.quest-reviews-badge { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.quest-reviews-tone-neutral { background: #e9e8e4; color: #514532; }
+.quest-reviews-tone-info { background: rgba(29, 78, 216, 0.12); color: #1d4ed8; }
+.quest-reviews-detail { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.quest-reviews-detail .submission-title { margin-bottom: 0; }
+.quest-reviews-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #e3dfd5; }
+.quest-reviews-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quest-reviews-dates { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; font-weight: 600; color: #837560; }
+.quest-reviews-tasks { display: flex; flex-direction: column; gap: 12px; }
+.quest-reviews-task { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #faf9f5; border: 1px solid rgba(213, 196, 172, 0.6); border-radius: var(--radius-md); }
+.quest-reviews-task-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.quest-reviews-task-main { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.quest-reviews-task-icon { display: flex; padding: 8px; background: #ffffff; border: 1px solid #e3dfd5; border-radius: var(--radius-sm); flex-shrink: 0; }
+.quest-reviews-task-title { font-size: 14px; font-weight: 800; color: #1b1c1a; }
+.quest-reviews-task-type { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9c8a72; }
+.quest-reviews-evidence { margin-bottom: 0; background: #ffffff; border: 1px solid #e3dfd5; font-size: 12px; color: #514532; }
+.quest-reviews-photo { display: flex; align-items: flex-start; gap: 12px; }
+.quest-reviews-photo-img { width: 96px; height: 96px; object-fit: cover; flex-shrink: 0; border-radius: var(--radius-sm); border: 1px solid #e3dfd5; background: #efeeea; }
+.quest-reviews-photo-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.quest-reviews-note { font-size: 11px; color: #837560; }
+.quest-reviews-ar { color: #6d28d9; font-weight: 600; }
+.quest-reviews-reason { margin-bottom: 0; }
+.quest-reviews-task-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.quest-reviews-approval { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid #e3dfd5; }
+.quest-reviews-approval-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.quest-reviews-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.quest-reviews-modal-title { font-size: 18px; font-weight: 800; color: #582f0e; }
+.quest-reviews-modal-title.is-danger { color: #bc4749; }
+.quest-reviews-field-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #514532; }
+@media (max-width: 960px) { .quest-reviews-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .quest-reviews-task-head, .quest-reviews-photo { flex-direction: column; } .quest-reviews-dates { align-items: flex-start; } }
