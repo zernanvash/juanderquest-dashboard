@@ -16,6 +16,7 @@ import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
 import { VouchersPage } from './pages/VouchersPage';
 import { JuanChoicePage } from './pages/JuanChoicePage';
+import { FestivalCalendarPage } from './pages/FestivalCalendarPage';
 import { AffiliatesPage } from './pages/AffiliatesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AreaAdminsPage } from './pages/AreaAdminsPage';
@@ -94,6 +95,8 @@ function RouteOutlet() {
       return <QuizzesPage />;
     case '/juanchoice':
       return <JuanChoicePage />;
+    case '/festivals':
+      return <FestivalCalendarPage />;
     case '/partners/affiliates':
       return <AffiliatesPage />;
     case '/partners/merchants':
