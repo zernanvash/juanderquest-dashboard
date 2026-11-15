@@ -1,4 +1,4 @@
-import type { CulturalQuizLanguage } from '../types';
+import type { CulturalQuizLanguage, CulturalQuizQuestionType } from '../types';
 
 export interface QuizDraftOption {
   text: string;
@@ -6,11 +6,20 @@ export interface QuizDraftOption {
 }
 
 export interface QuizDraftQuestion {
+  questionType?: CulturalQuizQuestionType;
+  mediaUrl?: string;
   questionText: string;
   explanation: string;
   sourceUrl: string;
   options: QuizDraftOption[];
 }
+
+export const QUIZ_QUESTION_TYPES: { value: CulturalQuizQuestionType; label: string }[] = [
+  { value: 'multiple_choice', label: 'Multiple choice' },
+  { value: 'true_false', label: 'Myth vs Fact' },
+  { value: 'photo_clue', label: 'Photo clue' },
+  { value: 'sequence_order', label: 'Sequence order' },
+];
 
 export interface QuizDraftForm {
   destinationId: string;
@@ -33,6 +42,8 @@ export const QUIZ_LANGUAGES: { value: CulturalQuizLanguage; label: string }[] = 
 ];
 
 const createQuestion = (): QuizDraftQuestion => ({
+  questionType: 'multiple_choice',
+  mediaUrl: '',
   questionText: '',
   explanation: '',
   sourceUrl: '',
@@ -43,6 +54,45 @@ const createQuestion = (): QuizDraftQuestion => ({
     { text: '', isCorrect: false },
   ],
 });
+
+export const applyQuestionType = (
+  question: QuizDraftQuestion,
+  nextType: CulturalQuizQuestionType,
+): QuizDraftQuestion => {
+  if (nextType === question.questionType) return question;
+  if (nextType === 'true_false') {
+    return {
+      ...question,
+      questionType: 'true_false',
+      mediaUrl: '',
+      options: [
+        { text: 'Fact', isCorrect: true },
+        { text: 'Myth', isCorrect: false },
+      ],
+    };
+  }
+  if (nextType === 'sequence_order') {
+    const existing = question.options.slice(0, 4).map((o) => ({ text: o.text, isCorrect: false }));
+    while (existing.length < 3) existing.push({ text: '', isCorrect: false });
+    return {
+      ...question,
+      questionType: 'sequence_order',
+      mediaUrl: '',
+      options: existing,
+    };
+  }
+  const existing = question.options.slice(0, 4).map((o) => ({ ...o }));
+  while (existing.length < 4) existing.push({ text: '', isCorrect: false });
+  if (existing.filter((o) => o.isCorrect).length !== 1) {
+    existing.forEach((o, i) => { o.isCorrect = i === 0; });
+  }
+  return {
+    ...question,
+    questionType: nextType,
+    mediaUrl: nextType === 'photo_clue' ? question.mediaUrl : '',
+    options: existing,
+  };
+};
 
 export interface QuizDraftDefaults {
   language?: CulturalQuizLanguage;
@@ -98,12 +148,32 @@ export const validateQuizQuestions = (draft: QuizDraftForm): string[] => {
         errors.push(`${label}: source URL must be a valid URL or left empty.`);
       }
     }
-    if (question.options.length !== 4) errors.push(`${label}: exactly 4 options are required.`);
-    question.options.forEach((option, optionIndex) => {
-      if (!option.text.trim()) errors.push(`${label}: option ${optionIndex + 1} text is required.`);
-    });
-    const correct = question.options.filter((option) => option.isCorrect).length;
-    if (correct !== 1) errors.push(`${label}: mark exactly one correct answer (currently ${correct}).`);
+    const qType: CulturalQuizQuestionType = question.questionType ?? 'multiple_choice';
+    if (qType === 'true_false') {
+      if (question.options.length !== 2) errors.push(`${label}: Myth vs Fact requires exactly 2 options.`);
+      question.options.forEach((option, optionIndex) => {
+        if (!option.text.trim()) errors.push(`${label}: option ${optionIndex + 1} text is required.`);
+      });
+      const correct = question.options.filter((option) => option.isCorrect).length;
+      if (correct !== 1) errors.push(`${label}: mark exactly one correct answer (currently ${correct}).`);
+    } else if (qType === 'sequence_order') {
+      if (question.options.length < 3 || question.options.length > 4) {
+        errors.push(`${label}: sequence order requires 3 or 4 steps.`);
+      }
+      question.options.forEach((option, optionIndex) => {
+        if (!option.text.trim()) errors.push(`${label}: step ${optionIndex + 1} text is required.`);
+      });
+    } else {
+      if (qType === 'photo_clue' && !(question.mediaUrl ?? '').trim()) {
+        errors.push(`${label}: choose a destination photo for the photo clue.`);
+      }
+      if (question.options.length !== 4) errors.push(`${label}: exactly 4 options are required.`);
+      question.options.forEach((option, optionIndex) => {
+        if (!option.text.trim()) errors.push(`${label}: option ${optionIndex + 1} text is required.`);
+      });
+      const correct = question.options.filter((option) => option.isCorrect).length;
+      if (correct !== 1) errors.push(`${label}: mark exactly one correct answer (currently ${correct}).`);
+    }
   });
   return errors;
 };
@@ -123,15 +193,20 @@ export const toQuizPayload = (draft: QuizDraftForm) => ({
   time_limit_minutes: draft.timeLimitMinutes,
   cooldown_hours: draft.cooldownHours,
   is_test: draft.isTest,
-  questions: draft.questions.map((question, index) => ({
-    ordinal: index + 1,
-    question_text: question.questionText.trim(),
-    explanation: question.explanation.trim(),
-    ...(question.sourceUrl.trim() ? { source_url: question.sourceUrl.trim() } : {}),
-    options: question.options.map((option, optionIndex) => ({
-      ordinal: optionIndex + 1,
-      option_text: option.text.trim(),
-      is_correct: option.isCorrect,
-    })),
-  })),
+  questions: draft.questions.map((question, index) => {
+    const qType: CulturalQuizQuestionType = question.questionType ?? 'multiple_choice';
+    return {
+      ordinal: index + 1,
+      question_type: qType,
+      ...(qType === 'photo_clue' && (question.mediaUrl ?? '').trim() ? { media_url: question.mediaUrl!.trim() } : {}),
+      question_text: question.questionText.trim(),
+      explanation: question.explanation.trim(),
+      ...(question.sourceUrl.trim() ? { source_url: question.sourceUrl.trim() } : {}),
+      options: question.options.map((option, optionIndex) => ({
+        ordinal: optionIndex + 1,
+        option_text: option.text.trim(),
+        is_correct: qType === 'sequence_order' ? false : option.isCorrect,
+      })),
+    };
+  }),
 });
