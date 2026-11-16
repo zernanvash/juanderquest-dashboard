@@ -130,7 +130,7 @@ export function FundingPage() {
 
   return <div>
     <PageHeader title="Quest funding & merchant points" description="Monitor simulated point funding and make reasoned, auditable merchant adjustments. No real payment or blockchain transfer occurs." />
-    {!fundingEnabled && <div className="status-banner" role="status"><strong>Traveler funded-quest starts are paused</strong><span>Server setting <code>quest_funding_enabled</code> is off; admin treasury, reconciliation, and ledger inspection remain active.</span></div>}
+    {!fundingEnabled && <div className="status-banner" role="status"><strong>Traveler funded-quest starts are paused</strong><span>The server's <code>QUEST_FUNDING_ENABLED</code> switch is off; admin treasury, reconciliation, and ledger inspection remain active.</span></div>}
     {error && <div className="load-error" role="alert">{error}<button type="button" onClick={() => void load()}>Retry</button></div>}
     {notice && <div className="status-banner status-banner-success" role="status">{notice}</div>}
 
