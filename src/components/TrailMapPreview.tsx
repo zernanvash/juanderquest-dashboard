@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin } from 'lucide-react';
+import { MAP_TILE_MAX_NATIVE_ZOOM, MAP_TILE_URL } from '../mapTiles';
 
 export interface TrailStopPoint {
   position: number;
@@ -35,7 +36,8 @@ export function TrailMapPreview({ stops }: { stops: TrailStopPoint[] }) {
         scrollWheelZoom: false,
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer(MAP_TILE_URL, {
+        maxNativeZoom: MAP_TILE_MAX_NATIVE_ZOOM,
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18,
       }).addTo(map);

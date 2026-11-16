@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { MapPin } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import type { Spot } from '../types';
+import { MAP_TILE_MAX_NATIVE_ZOOM, MAP_TILE_URL } from '../mapTiles';
 
 const DEFAULT_LAT = 16.0431;
 const DEFAULT_LNG = 120.3333;
@@ -83,7 +84,8 @@ export function QuizMapPinPicker({
       zoom: hasPin ? 14 : 10,
       zoomControl: true,
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(MAP_TILE_URL, {
+      maxNativeZoom: MAP_TILE_MAX_NATIVE_ZOOM,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 

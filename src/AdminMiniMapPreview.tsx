@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, MapPin, CheckCircle2, AlertTriangle, Compass } from 'lucide-react';
+import { MAP_TILE_MAX_NATIVE_ZOOM, MAP_TILE_URL } from './mapTiles';
 
 export interface AdminMiniMapPreviewProps {
   targetLat: number;
@@ -74,7 +75,8 @@ export function AdminMiniMapPreview({
         }).setView([validTargetLat, validTargetLng], 15);
 
         // OpenStreetMap raster tile layer
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer(MAP_TILE_URL, {
+          maxNativeZoom: MAP_TILE_MAX_NATIVE_ZOOM,
           maxZoom: 18,
           attribution: '',
         }).addTo(map);
