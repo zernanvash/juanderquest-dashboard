@@ -65,7 +65,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiRequestOpt
       payload = body;
     } else {
       requestHeaders.set('Content-Type', 'application/json');
-      payload = JSON.stringify(body);
+      payload = typeof body === 'string' ? body : JSON.stringify(body);
     }
   }
 

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Compass } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useSelectedAreaId } from '../auth';
 import { withArea } from '../utils/areaQuery';
 import { useRouter } from '../router';
 import { PageHeader } from '../components/PageState';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { describeError } from '../utils/errors';
 import type { Spot } from '../types';
 
@@ -20,6 +21,8 @@ export function DestinationsPage() {
   const statusFilter = parseStatus(query.get('status'));
 
   const [spots, setSpots] = useState<Spot[]>([]);
+  const [search, setSearch] = useState('');
+  const [municipalityFilter, setMunicipalityFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
   const [reviewError, setReviewError] = useState('');
@@ -66,7 +69,30 @@ export function DestinationsPage() {
     }
   };
 
-  const filtered = spots.filter((spot) => statusFilter === 'all' || spot.status === statusFilter);
+  const municipalities = useMemo(() => {
+    const unique = new Set<string>();
+    for (const spot of spots) {
+      if (spot.municipality) unique.add(spot.municipality);
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [spots]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return spots.filter((spot) => {
+      if (statusFilter !== 'all' && spot.status !== statusFilter) return false;
+      if (municipalityFilter !== 'all' && spot.municipality !== municipalityFilter) return false;
+      if (!q) return true;
+      return (
+        spot.name.toLowerCase().includes(q) ||
+        spot.municipality.toLowerCase().includes(q) ||
+        spot.subcategory.toLowerCase().includes(q) ||
+        spot.source_name.toLowerCase().includes(q)
+      );
+    });
+  }, [spots, statusFilter, municipalityFilter, search]);
+
+  const { page, totalPages, pageItems: pagedSpots, setPage } = useClientPagination(filtered, 24);
 
   return (
     <div>
@@ -97,6 +123,28 @@ export function DestinationsPage() {
         ))}
       </div>
 
+      <AdminSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search destinations, municipality, category…"
+        resultCount={filtered.length}
+        totalCount={spots.length}
+      >
+        {municipalities.length > 1 ? (
+          <select
+            aria-label="Filter by municipality"
+            value={municipalityFilter}
+            onChange={(event) => setMunicipalityFilter(event.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="all">All municipalities</option>
+            {municipalities.map((muni) => (
+              <option key={muni} value={muni}>{muni}</option>
+            ))}
+          </select>
+        ) : null}
+      </AdminSearchBar>
+
       {loading ? (
         <div className="stitch-panel loading-panel">Loading destinations…</div>
       ) : filtered.length === 0 ? (
@@ -105,8 +153,9 @@ export function DestinationsPage() {
           <p className="page-state-title">No destinations match this filter.</p>
         </div>
       ) : (
-        <div className="quest-grid">
-          {filtered.map((spot) => (
+        <>
+          <div className="quest-grid">
+            {pagedSpots.map((spot) => (
             <div key={spot.id} className="stitch-card destination-card">
               {spot.image_url ? (
                 <img
@@ -188,6 +237,8 @@ export function DestinationsPage() {
             </div>
           ))}
         </div>
+        <AdminPagination page={page} totalPages={totalPages} totalItems={filtered.length} onPageChange={setPage} />
+        </>
       )}
     </div>
   );

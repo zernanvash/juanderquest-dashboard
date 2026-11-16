@@ -2021,3 +2021,55 @@ a.chain-mono:hover { text-decoration: underline; }
 .procedural-banner-preview { position: relative; margin-top: 8px; overflow: hidden; border-radius: var(--radius-sm); }
 .procedural-banner-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .cosmetic-preview-slot { margin-top: 8px; }
+
+/* Plan 97: Admin search bar, pagination, quiz pin picker, trail studio workspace, cosmetic editor, overview bands */
+.admin-search-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 16px; }
+.admin-search-input-wrap { position: relative; flex: 1 1 280px; display: flex; align-items: center; }
+.admin-search-icon { position: absolute; left: 12px; color: #837560; pointer-events: none; }
+.admin-search-input { width: 100%; padding: 8px 34px 8px 36px; border: 1px solid #d5c4ac; border-radius: var(--radius-sm); background: #ffffff; color: #1b1c1a; font-size: 13px; }
+.admin-search-clear { position: absolute; right: 8px; background: none; border: none; color: #837560; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; }
+.admin-search-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.admin-search-count { font-size: 12px; color: #837560; font-weight: 600; }
+.admin-filter-select { padding: 7px 10px; border: 1px solid #d5c4ac; border-radius: var(--radius-sm); background: #ffffff; color: #1b1c1a; font-size: 13px; }
+.admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e3dfd5; font-size: 13px; color: #514532; }
+.admin-pagination-actions { display: flex; align-items: center; gap: 8px; }
+
+.quiz-pin-picker { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #faf9f5; border: 1px solid #e3dfd5; border-radius: var(--radius-md); }
+.quiz-pin-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.quiz-pin-head-actions { display: flex; gap: 8px; align-items: center; }
+.quiz-pin-map { height: 260px; width: 100%; border-radius: var(--radius-sm); border: 1px solid #d5c4ac; background: #efeeea; z-index: 1; }
+.quiz-pin-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.quiz-pin-coords { font-size: 12px; color: #514532; margin: 0; }
+.quiz-pin-recognize { margin-top: 0; }
+
+.trail-studio-workspace { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.trail-studio-list { display: flex; flex-direction: column; gap: 8px; }
+.trail-studio-list-item { text-align: left; padding: 12px; border: 1px solid #d5c4ac; border-radius: var(--radius-md); background: #ffffff; cursor: pointer; display: flex; flex-direction: column; gap: 4px; color: #1b1c1a; }
+.trail-studio-list-item.is-active { border-color: #28735a; background: #f3faf7; box-shadow: 0 0 0 2px rgba(40, 115, 90, 0.14); }
+.trail-studio-list-item-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.trail-studio-detail { min-width: 0; }
+.trail-leaflet-canvas { height: 220px; width: 100%; border-radius: var(--radius-sm); border: 1px solid #d5c4ac; background: #efeeea; z-index: 1; }
+.trail-leaflet-pin span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #f4a261; border: 2px solid #ffffff; color: #392718; font-size: 11px; font-weight: 800; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+@media (max-width: 900px) { .trail-studio-workspace { grid-template-columns: minmax(0, 1fr); } }
+
+.cosmetic-editor-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr); gap: 20px; align-items: start; }
+.cosmetic-profile-card { border: 1px solid #d5c4ac; border-radius: var(--radius-md); overflow: hidden; background: #faf9f5; margin-bottom: 12px; }
+.cosmetic-profile-banner { width: 100%; min-height: 96px; }
+.cosmetic-profile-gradient { width: 100%; aspect-ratio: 3 / 1; }
+.cosmetic-profile-body { display: flex; align-items: center; gap: 12px; padding: 14px; }
+.cosmetic-profile-avatar { width: 48px; height: 48px; border-radius: 50%; border-style: solid; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #ffffff; color: #1b1c1a; flex-shrink: 0; }
+.cosmetic-profile-identity { display: flex; flex-direction: column; gap: 2px; }
+.cosmetic-profile-title-badge { font-size: 12px; color: #837560; font-weight: 600; }
+@media (max-width: 900px) { .cosmetic-editor-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.jc-quick-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.jc-matrix-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.jc-matrix-table th, .jc-matrix-table td { text-align: center; padding: 8px; }
+.jc-matrix-table th:first-child, .jc-matrix-table td:first-child { text-align: left; }
+
+.overview-command-center { display: flex; flex-direction: column; gap: 24px; }
+.overview-band-title { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #837560; margin: 0 0 12px; }
+.overview-actions-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.overview-readiness-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.overview-readiness-head { display: flex; align-items: flex-start; gap: 12px; }
+.overview-deps-list { display: flex; flex-wrap: wrap; gap: 8px; }

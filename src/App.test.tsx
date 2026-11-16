@@ -54,10 +54,16 @@ const adminFetchMock = (overrides: Record<string, unknown> = {}) =>
       return Promise.resolve(jsonResponse({ status: 'ready', ready: true, degraded: false, timestamp: new Date().toISOString(), dependencies: { postgres: { status: 'up', latency_ms: 1 } } }));
     }
     if (url.startsWith('/api/v1/admin/submissions')) return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/admin/quest-attempts') return Promise.resolve(jsonResponse({ success: true, data: [] }));
     if (url === '/api/v1/admin/spots') return Promise.resolve(jsonResponse({ success: true, data: [] }));
     if (url === '/api/v1/admin/spot-reports') return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/admin/plaza/reports?status=open') return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/admin/trails/review') return Promise.resolve(jsonResponse({ success: true, data: [] }));
     if (url === '/api/v1/admin/affiliate/applications') return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/admin/quests') return Promise.resolve(jsonResponse({ success: true, data: [] }));
     if (url === '/api/v1/admin/quizzes') return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/admin/vouchers') return Promise.resolve(jsonResponse({ success: true, data: [] }));
+    if (url === '/api/v1/juanchoice/overview') return Promise.resolve(jsonResponse({ success: true, data: { active_campaign: null } }));
     if (url === '/api/v1/admin/merchants') return Promise.resolve(jsonResponse({ success: true, data: [] }));
     if (url === '/api/v1/admin/settings') {
       return Promise.resolve(jsonResponse({ success: true, data: { revision: 0, updated_by: null, updated_at: null, values: {}, definitions: [] } }));
@@ -243,7 +249,7 @@ describe('admin authentication and routed shell', () => {
     await screen.findByRole('heading', { level: 1, name: /operations overview/i });
 
     const overviewCalls = fetchMock.mock.calls.map((call) => String(call[0]));
-    for (const section of ['/admin/quizzes', '/admin/merchants', '/admin/analytics', '/admin/governance', '/juanchoice/admin', '/admin/system/status']) {
+    for (const section of ['/admin/merchants', '/admin/analytics', '/admin/governance', '/juanchoice/admin', '/admin/system/status']) {
       expect(overviewCalls.some((url) => url.includes(section))).toBe(false);
     }
 
@@ -252,7 +258,7 @@ describe('admin authentication and routed shell', () => {
 
     const afterNavigation = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(afterNavigation).toContain('/api/v1/admin/spots');
-    for (const section of ['/admin/quizzes', '/admin/merchants', '/admin/analytics', '/admin/governance', '/juanchoice/admin']) {
+    for (const section of ['/admin/merchants', '/admin/analytics', '/admin/governance', '/juanchoice/admin']) {
       expect(afterNavigation.some((url) => url.includes(section))).toBe(false);
     }
   });

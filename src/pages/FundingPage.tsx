@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Coins, RefreshCw, ShieldAlert, Store } from 'lucide-react';
 import { apiFetch } from '../api/client';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
 
@@ -16,6 +17,9 @@ export function FundingPage() {
   const [credits, setCredits] = useState<Credit[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [status, setStatus] = useState('');
+  const [planSearch, setPlanSearch] = useState('');
+  const [creditSearch, setCreditSearch] = useState('');
+  const [fundingEnabled, setFundingEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -30,15 +34,16 @@ export function FundingPage() {
     setError('');
     try {
       const [overview, funds, creditRows, merchantRows] = await Promise.all([
-        apiFetch<{ items: Plan[] }>('/admin/quest-funding', { signal }),
+        apiFetch<{ items: Plan[]; funding_enabled?: boolean }>('/admin/quest-funding', { signal }),
         apiFetch<any>('/admin/treasury', { signal }),
-        apiFetch<{ items: Credit[] }>('/admin/merchant-point-credits?limit=200', { signal }),
+        apiFetch<{ items: Credit[]; funding_enabled?: boolean }>('/admin/merchant-point-credits?limit=200', { signal }),
         apiFetch<Merchant[]>('/admin/merchants', { signal }),
       ]);
       setPlans(overview.items ?? []);
       setTreasury(funds);
       setCredits(creditRows.items ?? []);
       setMerchants(merchantRows ?? []);
+      setFundingEnabled(overview.funding_enabled !== false && funds?.funding_enabled !== false);
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === 'AbortError')) setError(describeError(cause, 'Unable to load funded quest operations.'));
     } finally {
@@ -105,10 +110,27 @@ export function FundingPage() {
       .filter(row => row.reversible > 0);
   }, [credits, merchantId]);
   const amount = Number(adjustment);
-  const filtered = plans.filter(plan => !status || plan.status === status);
+  const filtered = useMemo(() => {
+    const q = planSearch.trim().toLowerCase();
+    return plans.filter((plan) => {
+      if (status && plan.status !== status) return false;
+      if (!q) return true;
+      return `${plan.quest_id} ${plan.mode} ${plan.status} round ${plan.round_number}`.toLowerCase().includes(q);
+    });
+  }, [plans, status, planSearch]);
+  const filteredCredits = useMemo(() => {
+    const q = creditSearch.trim().toLowerCase();
+    if (!q) return credits;
+    return credits.filter((row) =>
+      `${row.merchant_name} ${row.source} ${row.reference ?? ''} ${row.ledger_group_id}`.toLowerCase().includes(q),
+    );
+  }, [credits, creditSearch]);
+  const planPage = useClientPagination(filtered, 24);
+  const creditPage = useClientPagination(filteredCredits, 24);
 
   return <div>
     <PageHeader title="Quest funding & merchant points" description="Monitor simulated point funding and make reasoned, auditable merchant adjustments. No real payment or blockchain transfer occurs." />
+    {!fundingEnabled && <div className="status-banner" role="status"><strong>Traveler funded-quest starts are paused</strong><span>Server setting <code>quest_funding_enabled</code> is off; admin treasury, reconciliation, and ledger inspection remain active.</span></div>}
     {error && <div className="load-error" role="alert">{error}<button type="button" onClick={() => void load()}>Retry</button></div>}
     {notice && <div className="status-banner status-banner-success" role="status">{notice}</div>}
 
@@ -117,8 +139,33 @@ export function FundingPage() {
       {loading ? <p className="loading-panel">Loading funding operations…</p> : treasury ? <><div className="metric-grid">{(treasury.accounts ?? []).map((account: any) => <div className="metric-card" key={account.id}><span>{account.is_test ? 'Test ' : 'Platform '}{account.kind}</span><strong>{account.balance_points} points</strong></div>)}</div><div className={`status-banner ${treasury.reconciliation?.ok ? 'status-banner-success' : 'status-banner-danger'}`} role="status"><strong>{treasury.reconciliation?.ok ? 'Reconciliation clean' : 'Reconciliation mismatch detected'}</strong><span>Plans {treasury.reconciliation?.plans?.mismatches ?? 0} · Accounts {treasury.reconciliation?.point_accounts?.mismatches ?? 0} · Ledger groups {treasury.reconciliation?.ledger_groups?.mismatches ?? 0}</span></div>{treasury.reconciliation?.ok === false && <pre className="code-panel">{JSON.stringify(treasury.reconciliation, null, 2)}</pre>}</> : <p>Funding metrics unavailable.</p>}
     </section>
 
-    <section className="stitch-panel panel-section"><div className="section-heading-row"><div><h2 className="section-title"><Store size={18} /> Funding rounds</h2><p className="section-description">Inspect funded and historical rounds. Test records are clearly marked.</p></div><label className="field-label">Status<select value={status} onChange={event => setStatus(event.target.value)}><option value="">All</option>{['draft', 'pending_sponsors', 'scheduled', 'active', 'closing', 'closed', 'expired', 'cancelled'].map(value => <option key={value}>{value}</option>)}</select></label></div>
-      {loading ? <p>Loading plans…</p> : filtered.length === 0 ? <p className="empty-state">No funding plans found.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Quest / round</th><th>State</th><th>Model</th><th>Funding</th><th>Reservations</th><th>Window</th><th>Actions</th></tr></thead><tbody>{filtered.map(plan => <tr key={plan.id}><td><strong>{plan.quest_id}</strong><small>Round {plan.round_number}{plan.is_test ? ' · TEST' : ''}</small></td><td>{plan.status}</td><td>{plan.mode}</td><td>{plan.committed_points} / {plan.target_points} pts</td><td>{plan.live_holds} live</td><td>{new Date(plan.starts_at).toLocaleDateString()} — {new Date(plan.ends_at).toLocaleDateString()}</td><td><button className="button button-secondary" disabled={!!busy} onClick={() => void inspect(plan)}>Inspect</button>{['active', 'scheduled'].includes(plan.status) && <button className="button button-danger" disabled={!!busy} onClick={() => void close(plan)}>Close</button>}</td></tr>)}</tbody></table></div>}
+    <section className="stitch-panel panel-section"><div className="section-heading-row"><div><h2 className="section-title"><Store size={18} /> Funding rounds</h2><p className="section-description">Inspect funded and historical rounds. Test records are clearly marked.</p></div></div>
+      <AdminSearchBar
+        value={planSearch}
+        onChange={setPlanSearch}
+        placeholder="Search by quest ID, mode, or round…"
+        ariaLabel="Search funding rounds"
+        totalCount={plans.length}
+        filteredCount={filtered.length}
+        shownCount={planPage.pageItems.length}
+        itemLabel="rounds"
+        filters={[
+          {
+            id: 'funding-status',
+            label: 'Status',
+            value: status,
+            onChange: setStatus,
+            options: [
+              { value: '', label: 'All' },
+              ...['draft', 'pending_sponsors', 'scheduled', 'active', 'closing', 'closed', 'expired', 'cancelled'].map((value) => ({
+                value,
+                label: value,
+              })),
+            ],
+          },
+        ]}
+      />
+      {loading ? <p>Loading plans…</p> : filtered.length === 0 ? <p className="empty-state">No funding plans found.</p> : <><div className="table-scroll"><table className="data-table"><thead><tr><th>Quest / round</th><th>State</th><th>Model</th><th>Funding</th><th>Reservations</th><th>Window</th><th>Actions</th></tr></thead><tbody>{planPage.pageItems.map(plan => <tr key={plan.id}><td><strong>{plan.quest_id}</strong><small>Round {plan.round_number}{plan.is_test ? ' · TEST' : ''}</small></td><td>{plan.status}</td><td>{plan.mode}</td><td>{plan.committed_points} / {plan.target_points} pts</td><td>{plan.live_holds} live</td><td>{new Date(plan.starts_at).toLocaleDateString()} — {new Date(plan.ends_at).toLocaleDateString()}</td><td><button className="button button-secondary" disabled={!!busy} onClick={() => void inspect(plan)}>Inspect</button>{['active', 'scheduled'].includes(plan.status) && <button className="button button-danger" disabled={!!busy} onClick={() => void close(plan)}>Close</button>}</td></tr>)}</tbody></table></div><AdminPagination page={planPage.page} totalPages={planPage.totalPages} onPageChange={planPage.setPage} /></>}
       {selected && <div className="detail-drawer"><div className="section-heading-row"><h3>Plan {selected.id}</h3><button onClick={() => setSelected(null)} aria-label="Close detail">×</button></div><pre className="code-panel">{JSON.stringify(selected, null, 2)}</pre></div>}
     </section>
 
@@ -134,7 +181,18 @@ export function FundingPage() {
       <button type="button" className="button-approve" disabled={!!busy || !merchantId || !Number.isSafeInteger(amount) || amount === 0 || reason.trim().length < 10 || (amount < 0 && !reversesCreditId)} onClick={() => void submitAdjustment()}>{busy === 'merchant-adjustment' ? 'Recording…' : amount < 0 ? 'Record correction' : 'Grant simulated points'}</button>
     </section>
 
-    <section className="stitch-panel panel-section"><h2 className="section-title"><Store size={18} /> Recent merchant point credits</h2>{credits.length === 0 ? <p className="empty-state" style={{ marginTop: 14 }}>No merchant point credits yet.</p> : <div className="table-scroll" style={{ marginTop: 14 }}><table className="data-table"><thead><tr><th>Merchant</th><th>Source</th><th>Amount</th><th>Ledger group</th><th>Time</th></tr></thead><tbody>{credits.map(row => <tr key={row.id}><td>{row.merchant_name}</td><td>{row.source}</td><td>{row.points} pts</td><td><code>{row.ledger_group_id}</code></td><td>{new Date(row.created_at).toLocaleString()}</td></tr>)}</tbody></table></div>}</section>
+    <section className="stitch-panel panel-section"><h2 className="section-title"><Store size={18} /> Recent merchant point credits</h2>
+      <AdminSearchBar
+        value={creditSearch}
+        onChange={setCreditSearch}
+        placeholder="Search by merchant, source, reference, or ledger group…"
+        ariaLabel="Search merchant point credits"
+        totalCount={credits.length}
+        filteredCount={filteredCredits.length}
+        shownCount={creditPage.pageItems.length}
+        itemLabel="credits"
+      />
+      {filteredCredits.length === 0 ? <p className="empty-state" style={{ marginTop: 14 }}>No merchant point credits yet.</p> : <><div className="table-scroll" style={{ marginTop: 14 }}><table className="data-table"><thead><tr><th>Merchant</th><th>Source</th><th>Amount</th><th>Ledger group</th><th>Time</th></tr></thead><tbody>{creditPage.pageItems.map(row => <tr key={row.id}><td>{row.merchant_name}</td><td>{row.source}</td><td>{row.points} pts</td><td><code>{row.ledger_group_id}</code></td><td>{new Date(row.created_at).toLocaleString()}</td></tr>)}</tbody></table></div><AdminPagination page={creditPage.page} totalPages={creditPage.totalPages} onPageChange={creditPage.setPage} /></>}</section>
     <p className="page-footnote"><ShieldAlert size={14} /> A close action stops new attempts; existing traveler holds remain payable. Corrections are tied to an original credit, fully audited, and cannot reduce merchant balance below zero.</p>
   </div>;
 }

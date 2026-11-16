@@ -23,6 +23,10 @@ export const QUIZ_QUESTION_TYPES: { value: CulturalQuizQuestionType; label: stri
 
 export interface QuizDraftForm {
   destinationId: string;
+  pinLat?: number;
+  pinLng?: number;
+  locationLabel?: string;
+  municipality?: string;
   title: string;
   description: string;
   language: CulturalQuizLanguage;
@@ -117,7 +121,14 @@ export const createEmptyQuizDraft = (defaults: QuizDraftDefaults = {}): QuizDraf
 
 export const validateQuizBasics = (draft: QuizDraftForm): string[] => {
   const errors: string[] = [];
-  if (!draft.destinationId) errors.push('Choose a published destination.');
+  const hasPin =
+    typeof draft.pinLat === 'number' &&
+    Number.isFinite(draft.pinLat) &&
+    typeof draft.pinLng === 'number' &&
+    Number.isFinite(draft.pinLng);
+  if (!draft.destinationId && !hasPin) {
+    errors.push('Pin a location on the map or choose a published destination.');
+  }
   if (draft.title.trim().length < 3) errors.push('Title must be at least 3 characters.');
   if (draft.title.trim().length > 200) errors.push('Title must be at most 200 characters.');
   if (draft.description.trim().length < 10) errors.push('Description must be at least 10 characters.');
@@ -183,9 +194,35 @@ export const validateQuizDraft = (draft: QuizDraftForm): string[] => [
   ...validateQuizQuestions(draft),
 ];
 
-export const toQuizPayload = (draft: QuizDraftForm) => ({
-  destination_id: draft.destinationId,
-  title: draft.title.trim(),
+export const toQuizPayload = (draft: QuizDraftForm) => {
+  const hasPin =
+    typeof draft.pinLat === 'number' &&
+    Number.isFinite(draft.pinLat) &&
+    typeof draft.pinLng === 'number' &&
+    Number.isFinite(draft.pinLng);
+  const label = draft.locationLabel?.trim();
+  const municipality = draft.municipality?.trim();
+
+  return {
+    ...(draft.destinationId ? { destination_id: draft.destinationId } : {}),
+    ...(!draft.destinationId && hasPin
+      ? {
+          pin: {
+            lat: draft.pinLat!,
+            lng: draft.pinLng!,
+            ...(label ? { name: label } : {}),
+            ...(municipality ? { municipality } : {}),
+          },
+        }
+      : {}),
+    ...(draft.destinationId && hasPin
+      ? {
+          pin_lat: draft.pinLat!,
+          pin_lng: draft.pinLng!,
+          ...(label ? { location_label: label } : {}),
+        }
+      : {}),
+    title: draft.title.trim(),
   description: draft.description.trim(),
   language: draft.language,
   radius_meters: draft.radiusMeters,
@@ -209,4 +246,5 @@ export const toQuizPayload = (draft: QuizDraftForm) => ({
       })),
     };
   }),
-});
+  };
+};

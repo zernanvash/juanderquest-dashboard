@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Archive, BookOpen, PauseCircle, PlayCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useSelectedAreaId } from '../auth';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { QuizEditor } from '../components/QuizEditor';
 import { describeError } from '../utils/errors';
 import type { QuizDraftDefaults } from '../utils/quizDraft';
@@ -27,6 +28,8 @@ export function QuizzesPage() {
   const selectedAreaId = useSelectedAreaId();
   const [quizzes, setQuizzes] = useState<AdminQuizListItem[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | CulturalQuizStatus>('all');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -109,6 +112,21 @@ export function QuizzesPage() {
     void runLifecycle(item, 'revoke', 'Quiz revoked; active attempts were abandoned.', { reason: reason.trim() });
   };
 
+  const filteredQuizzes = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return quizzes.filter((item) => {
+      if (statusFilter !== 'all' && item.quiz.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        item.version.title.toLowerCase().includes(q) ||
+        item.destination_name.toLowerCase().includes(q) ||
+        item.version.language.toLowerCase().includes(q)
+      );
+    });
+  }, [quizzes, statusFilter, search]);
+
+  const { page, totalPages, pageItems: pagedQuizzes, setPage } = useClientPagination(filteredQuizzes, 24);
+
   return (
     <div>
       <PageHeader
@@ -133,24 +151,47 @@ export function QuizzesPage() {
       ) : null}
       {notice ? <p role="status" className="good-text quiz-notice">{notice}</p> : null}
 
-      <div className="quiz-list-header">
-        <span className="filter-label">{quizzes.length} {quizzes.length === 1 ? 'quiz' : 'quizzes'}</span>
+      <div className="filter-row">
+        <span className="filter-label">Status</span>
+        {(['all', 'draft', 'published', 'paused', 'archived'] as const).map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={`filter-chip${statusFilter === status ? ' is-active' : ''}`}
+            aria-pressed={statusFilter === status}
+            onClick={() => setStatusFilter(status)}
+          >
+            {status} ({status === 'all' ? quizzes.length : quizzes.filter((item) => item.quiz.status === status).length})
+          </button>
+        ))}
+      </div>
+
+      <AdminSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search quiz title, destination, language…"
+        resultCount={filteredQuizzes.length}
+        totalCount={quizzes.length}
+      >
         <button type="button" className="button-muted" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={14} aria-hidden="true" /> Refresh
         </button>
-      </div>
+      </AdminSearchBar>
 
       {loading ? (
         <div className="stitch-panel loading-panel">Loading cultural quizzes…</div>
-      ) : quizzes.length === 0 ? (
+      ) : filteredQuizzes.length === 0 ? (
         <div className="stitch-panel page-state page-state-empty">
           <BookOpen size={40} style={{ opacity: 0.5, marginBottom: 12 }} aria-hidden="true" />
-          <p className="page-state-title">No cultural quiz exists yet.</p>
-          <p className="page-state-detail">Create the first draft to enable a location-bound learning quiz.</p>
+          <p className="page-state-title">{quizzes.length === 0 ? 'No cultural quiz exists yet.' : 'No cultural quizzes match this filter.'}</p>
+          <p className="page-state-detail">
+            {quizzes.length === 0 ? 'Create the first draft to enable a location-bound learning quiz.' : 'Try clearing the search or status filter.'}
+          </p>
         </div>
       ) : (
-        <div className="quiz-admin-grid">
-          {quizzes.map((item) => {
+        <>
+          <div className="quiz-admin-grid">
+            {pagedQuizzes.map((item) => {
             const { quiz, version } = item;
             const busy = busyId === quiz.id;
             return (
@@ -209,6 +250,8 @@ export function QuizzesPage() {
             );
           })}
         </div>
+        <AdminPagination page={page} totalPages={totalPages} totalItems={filteredQuizzes.length} onPageChange={setPage} />
+        </>
       )}
 
       {editor ? (

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Clock, ShieldAlert, X } from 'lucide-react';
 import { AdminMiniMapPreview, ProximityGauge } from '../AdminMiniMapPreview';
 import { QueueVisualAnalytics } from '../QueueVisualAnalytics';
 import { ApiError, apiFetch } from '../api/client';
+import { AdminSearchBar } from '../components/AdminSearchBar';
 import { useRouter } from '../router';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
@@ -38,6 +39,7 @@ export function SubmissionsPage() {
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [search, setSearch] = useState('');
   const rejectInputRef = useRef<HTMLTextAreaElement>(null);
   const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -133,11 +135,17 @@ export function SubmissionsPage() {
     navigate(buildQuery(nextStatus, nextQa));
   };
 
-  const displayedSubmissions = submissions.filter((sub) => {
-    if (qaFilter === 'live') return !sub.is_test;
-    if (qaFilter === 'qa') return Boolean(sub.is_test);
-    return true;
-  });
+  const displayedSubmissions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return submissions.filter((sub) => {
+      if (qaFilter === 'live' && sub.is_test) return false;
+      if (qaFilter === 'qa' && !sub.is_test) return false;
+      if (!q) return true;
+      return `${sub.quest_title ?? ''} ${sub.user_name ?? ''} ${sub.scanned_marker_code ?? ''} ${sub.id}`
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [submissions, qaFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(displayedSubmissions.length / PAGE_SIZE));
   const requestedPage = Number(query.get('page')) || 1;
@@ -148,8 +156,16 @@ export function SubmissionsPage() {
     <div>
       <PageHeader
         title="Proof submissions"
-        description="GPS-backed quest proof awaiting review. Approvals award the declared quest rewards; rejections require a reason."
+        description="Legacy single-checkpoint GPS/marker proofs awaiting review. Multi-step quest photo, AR, and QR tasks are moderated in Quest attempt reviews."
       />
+
+      <div className="status-banner" role="note">
+        <strong>Multi-step quest proofs live in Quest attempt reviews</strong>
+        <span>Need to review traveler photo tasks or approve a multi-step quest attempt?</span>
+        <button type="button" className="button button-secondary" onClick={() => navigate('/quest-reviews')}>
+          Open Quest Attempt Reviews →
+        </button>
+      </div>
 
       {listError ? (
         <div className="load-error" role="alert">
@@ -161,6 +177,17 @@ export function SubmissionsPage() {
       {(status === 'pending' || status === 'all') && submissions.length > 0 ? (
         <QueueVisualAnalytics submissions={submissions} />
       ) : null}
+
+      <AdminSearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by quest title, traveler, marker code, or submission ID…"
+        ariaLabel="Search proof submissions"
+        totalCount={submissions.length}
+        filteredCount={displayedSubmissions.length}
+        shownCount={pageItems.length}
+        itemLabel="submissions"
+      />
 
       <div className="filter-row">
         <span className="filter-label">Status</span>
@@ -176,6 +203,17 @@ export function SubmissionsPage() {
           </button>
         ))}
       </div>
+
+      <AdminSearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by quest title, traveler, marker code, or submission ID…"
+        ariaLabel="Search proof submissions"
+        totalCount={submissions.length}
+        filteredCount={displayedSubmissions.length}
+        shownCount={pageItems.length}
+        itemLabel="submissions"
+      />
 
       <div className="filter-row">
         <span className="filter-label">Data scope</span>

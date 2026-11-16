@@ -15,6 +15,7 @@ import {
   validateQuizQuestions,
 } from '../utils/quizDraft';
 import type { AdminQuizDetail, CulturalQuizQuestionType, Spot } from '../types';
+import { QuizMapPinPicker } from './QuizMapPinPicker';
 
 type EditorStep = 'basics' | 'questions' | 'preview';
 
@@ -43,8 +44,17 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
         const detail = await apiFetch<AdminQuizDetail>(`/admin/quizzes/${quizId}`);
         if (!active) return;
         const questions = [...detail.questions].sort((a, b) => a.ordinal - b.ordinal);
+        const hostLines =
+          detail.version && 'host_lines' in detail.version && detail.version.host_lines && typeof detail.version.host_lines === 'object'
+            ? (detail.version.host_lines as Record<string, unknown>)
+            : null;
+        const linkedSpot = spots.find((s) => s.id === detail.quiz.destination_id);
         setDraft({
           destinationId: detail.quiz.destination_id,
+          pinLat: typeof hostLines?.pin_lat === 'number' ? hostLines.pin_lat : linkedSpot ? Number(linkedSpot.gps_lat) : undefined,
+          pinLng: typeof hostLines?.pin_lng === 'number' ? hostLines.pin_lng : linkedSpot ? Number(linkedSpot.gps_lng) : undefined,
+          locationLabel: typeof hostLines?.location_label === 'string' ? hostLines.location_label : linkedSpot?.name,
+          municipality: linkedSpot?.municipality,
           title: detail.version.title,
           description: detail.version.description,
           language: detail.version.language,
@@ -219,20 +229,18 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
 
         {!loading && step === 'basics' ? (
           <div className="quiz-form-grid">
-            <label className="quiz-field quiz-field-wide">
-              <span>Destination (published only)</span>
-              <select
-                value={draft.destinationId}
-                onChange={(event) => setDraft({ ...draft, destinationId: event.target.value })}
-              >
-                <option value="">Choose a destination…</option>
-                {publishedDestinations.map((spot) => (
-                  <option key={spot.id} value={spot.id}>
-                    {spot.name} · {spot.municipality}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="quiz-field quiz-field-wide">
+              <QuizMapPinPicker
+                spots={publishedDestinations}
+                destinationId={draft.destinationId}
+                pinLat={draft.pinLat}
+                pinLng={draft.pinLng}
+                locationLabel={draft.locationLabel}
+                municipality={draft.municipality}
+                radiusMeters={draft.radiusMeters}
+                onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+              />
+            </div>
             <label className="quiz-field quiz-field-wide">
               <span>Title</span>
               <input

@@ -143,6 +143,21 @@ export const NAV_SECTIONS: NavSection[] = [
         available: true,
       },
       {
+        path: '/juanchoice/perks',
+        label: 'Perk controls',
+        icon: Sparkles,
+        description: 'Live perk suspensions, catalog settings, and perk audit log.',
+        available: true,
+        requires: { platform: true },
+      },
+      {
+        path: '/juanchoice/history',
+        label: 'Round history',
+        icon: Vote,
+        description: 'Past finalized rounds, candidate manifests, and spotlight audit.',
+        available: true,
+      },
+      {
         path: '/festivals',
         label: 'Festival calendar',
         icon: CalendarDays,

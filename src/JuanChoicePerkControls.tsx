@@ -20,7 +20,7 @@ type State = {
   audit: { action: string; target: Record<string, string>; reason: string; actor_id: string; created_at: string }[];
 };
 
-const PERK_NAMES: Record<string, string> = {
+export const PERK_NAMES: Record<string, string> = {
   spot_xp_boost: 'Quest XP at the winning spot', msme_partner_spotlight: 'Local partner spotlight',
   category_xp_boost: 'Category quest XP', corridor_trail_discount: 'Hiyas Trail unlock discount',
   trail_completion_bonus: 'Trail completion bonus', quiz_arcade_xp_boost: 'Quiz XP',

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useSelectedAreaId } from '../auth';
 import { PageHeader } from '../components/PageState';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { withArea } from '../utils/areaQuery';
 import { describeError } from '../utils/errors';
 import type { Quest } from '../types';
@@ -15,6 +16,7 @@ export function QuestsPage() {
   const selectedAreaId = useSelectedAreaId();
   const [quests, setQuests] = useState<AdminQuest[]>([]);
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
@@ -55,7 +57,22 @@ export function QuestsPage() {
     }
   };
 
-  const shown = quests.filter((quest) => filter === 'all' || quest.status === filter);
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return quests.filter((quest) => {
+      if (filter !== 'all' && quest.status !== filter) return false;
+      if (!q) return true;
+      return (
+        quest.title.toLowerCase().includes(q) ||
+        (quest.spot_name ?? '').toLowerCase().includes(q) ||
+        (quest.municipality ?? '').toLowerCase().includes(q) ||
+        quest.location_name.toLowerCase().includes(q) ||
+        quest.category.toLowerCase().includes(q)
+      );
+    });
+  }, [quests, filter, search]);
+
+  const { page, totalPages, pageItems: pagedQuests, setPage } = useClientPagination(shown, 24);
 
   return (
     <div>
@@ -85,6 +102,14 @@ export function QuestsPage() {
         ))}
       </div>
 
+      <AdminSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search quest title, destination, municipality, category…"
+        resultCount={shown.length}
+        totalCount={quests.length}
+      />
+
       {loading ? (
         <div className="stitch-panel loading-panel">Loading quests…</div>
       ) : shown.length === 0 ? (
@@ -93,8 +118,9 @@ export function QuestsPage() {
           <p className="page-state-title">No quests match this filter.</p>
         </div>
       ) : (
-        <div className="quest-grid">
-          {shown.map((quest) => (
+        <>
+          <div className="quest-grid">
+            {pagedQuests.map((quest) => (
             <div key={quest.id} className="stitch-card quest-card">
               <div className="destination-tags">
                 <span className="destination-tag">{quest.category.replace(/_/g, ' ')}</span>
@@ -128,6 +154,8 @@ export function QuestsPage() {
             </div>
           ))}
         </div>
+        <AdminPagination page={page} totalPages={totalPages} totalItems={shown.length} onPageChange={setPage} />
+        </>
       )}
 
       <p className="page-footnote">

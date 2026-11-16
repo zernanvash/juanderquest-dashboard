@@ -4,7 +4,7 @@ import { applyQuestionType, createEmptyQuizDraft, toQuizPayload, validateQuizDra
 describe('quiz draft validation', () => {
   it('reports missing basics on an empty draft', () => {
     const errors = validateQuizDraft(createEmptyQuizDraft());
-    expect(errors).toContain('Choose a published destination.');
+    expect(errors).toContain('Pin a location on the map or choose a published destination.');
     expect(errors).toContain('Title must be at least 3 characters.');
     expect(errors).toContain('Description must be at least 10 characters.');
   });
