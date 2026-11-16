@@ -395,4 +395,25 @@ describe('admin authentication and routed shell', () => {
     expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
   });
+
+  it('collapses sidebar categories except Overview and Blockchain', async () => {
+    vi.stubGlobal('fetch', adminFetchMock());
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /operations overview/i });
+
+    expect(screen.queryByRole('button', { name: /^overview$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^blockchain$/i })).toBeNull();
+
+    const juanChoiceToggle = screen.getByRole('button', { name: /juanchoice/i });
+    expect(juanChoiceToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: /promotional voting/i })).toBeInTheDocument();
+
+    fireEvent.click(juanChoiceToggle);
+    expect(juanChoiceToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: /promotional voting/i })).toBeNull();
+
+    fireEvent.click(juanChoiceToggle);
+    expect(juanChoiceToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: /promotional voting/i })).toBeInTheDocument();
+  });
 });

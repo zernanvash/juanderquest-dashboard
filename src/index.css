@@ -545,6 +545,23 @@ input, textarea, select {
   color: #9c8a72;
   padding: 0 10px 6px;
 }
+.shell-nav-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #9c8a72;
+  padding: 4px 10px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.shell-nav-toggle:hover { background: #f4efe6; color: #582f0e; }
 .shell-nav ul { list-style: none; }
 .shell-nav-link {
   display: flex;
