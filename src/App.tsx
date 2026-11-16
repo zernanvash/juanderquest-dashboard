@@ -17,6 +17,8 @@ import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
 import { VouchersPage } from './pages/VouchersPage';
 import { JuanChoicePage } from './pages/JuanChoicePage';
+import { JuanChoicePerksPage } from './pages/JuanChoicePerksPage';
+import { JuanChoiceHistoryPage } from './pages/JuanChoiceHistoryPage';
 import { FestivalCalendarPage } from './pages/FestivalCalendarPage';
 import { AffiliatesPage } from './pages/AffiliatesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -29,6 +31,7 @@ import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
+import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
 import { DeveloperRolesPage } from './pages/DeveloperRolesPage';
 
@@ -95,6 +98,10 @@ function RouteOutlet() {
       return <QuizzesPage />;
     case '/juanchoice':
       return <JuanChoicePage />;
+    case '/juanchoice/perks':
+      return <JuanChoicePerksPage />;
+    case '/juanchoice/history':
+      return <JuanChoiceHistoryPage />;
     case '/festivals':
       return <FestivalCalendarPage />;
     case '/partners/affiliates':
@@ -105,6 +112,9 @@ function RouteOutlet() {
       return <VouchersPage />;
     case '/shop/cosmetics':
       return <ShopCosmeticsPage />;
+    case '/shop/cosmetics/new':
+    case '/shop/cosmetics/edit':
+      return <ShopCosmeticEditorPage />;
     case '/trails':
       return <TrailStudioPage />;
     case '/economy/funding':

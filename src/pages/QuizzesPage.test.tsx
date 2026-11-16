@@ -101,7 +101,7 @@ describe('QuizzesPage', () => {
     expect(screen.getByText('Destination & basics')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Choose a published destination.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pin a location on the map or choose a published destination.');
   });
 
   it('requires a reasoned revocation', async () => {

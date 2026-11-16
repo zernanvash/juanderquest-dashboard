@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShieldAlert, MessageSquare, AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { PageHeader } from '../components/PageState';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { describeError } from '../utils/errors';
 import type { PlazaReportGroup } from '../types';
 
@@ -12,6 +13,7 @@ export function PlazaModerationPage() {
   const [activeTab, setActiveTab] = useState<TabMode>('comments');
   const [reportStatus, setReportStatus] = useState<ReportStatus>('open');
   const [reports, setReports] = useState<PlazaReportGroup[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -85,6 +87,19 @@ export function PlazaModerationPage() {
     }
   };
 
+  const filteredReports = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return reports;
+    return reports.filter((group) => (
+      group.comment.body.toLowerCase().includes(q) ||
+      group.comment.author_display_name.toLowerCase().includes(q) ||
+      (group.activity?.subject_title ?? '').toLowerCase().includes(q) ||
+      group.reports.some((r) => r.reason.toLowerCase().includes(q))
+    ));
+  }, [reports, search]);
+
+  const { page, totalPages, pageItems: pagedReports, setPage } = useClientPagination(filteredReports, 24);
+
   return (
     <div className="plaza-moderation-page">
       <PageHeader
@@ -135,6 +150,14 @@ export function PlazaModerationPage() {
             </button>
           </div>
 
+          <AdminSearchBar
+            search={search}
+            onSearchChange={setSearch}
+            placeholder="Search comment text, author, activity, reason…"
+            resultCount={filteredReports.length}
+            totalCount={reports.length}
+          />
+
           {error ? (
             <div className="load-error" role="alert" style={{ marginBottom: 16 }}>
               {error} <button type="button" onClick={() => void loadReports()}>Retry</button>
@@ -143,17 +166,22 @@ export function PlazaModerationPage() {
 
           {loading ? (
             <div className="stitch-panel loading-panel">Loading Plaza reports…</div>
-          ) : reports.length === 0 ? (
+          ) : filteredReports.length === 0 ? (
             <div className="stitch-panel page-state page-state-empty">
               <CheckCircle size={40} style={{ opacity: 0.5, marginBottom: 12, color: 'var(--success, #10b981)' }} aria-hidden="true" />
-              <p className="page-state-title">No {reportStatus} reports found.</p>
+              <p className="page-state-title">
+                {reports.length === 0 ? `No ${reportStatus} reports found.` : 'No Plaza reports match your search.'}
+              </p>
               <p style={{ color: 'var(--muted, #94a3b8)', fontSize: '0.875rem' }}>
-                {reportStatus === 'open' ? 'All clear! No comments currently require moderation.' : 'No resolved report history.'}
+                {reports.length === 0
+                  ? (reportStatus === 'open' ? 'All clear! No comments currently require moderation.' : 'No resolved report history.')
+                  : 'Try clearing the search query.'}
               </p>
             </div>
           ) : (
-            <div className="report-grid">
-              {reports.map((group) => {
+            <>
+              <div className="report-grid">
+                {pagedReports.map((group) => {
                 const { comment, activity, reports: reportList } = group;
                 const isHidden = Boolean(comment.hidden_at);
                 const isWorking = actionInProgress === comment.id;
@@ -242,6 +270,8 @@ export function PlazaModerationPage() {
                 );
               })}
             </div>
+            <AdminPagination page={page} totalPages={totalPages} totalItems={filteredReports.length} onPageChange={setPage} />
+            </>
           )}
         </div>
       ) : (

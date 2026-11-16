@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Camera,
@@ -16,15 +16,27 @@ import {
   XCircle,
 } from 'lucide-react';
 import { ApiError, apiFetch } from '../api/client';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { EmptyState, PageError, PageHeader, PageLoading } from '../components/PageState';
 import { describeError } from '../utils/errors';
 import type { QuestAttempt, QuestStepEvidence } from '../types';
+
+type AttemptFilter = 'needs_review' | 'in_progress' | 'completed' | 'all';
+
+const isActionableAttempt = (attempt: QuestAttempt): boolean => {
+  if (attempt.status === 'completed') return false;
+  if (attempt.steps?.some((s) => s.status === 'pending_review')) return true;
+  if (attempt.status === 'submitted') return true;
+  return Boolean(attempt.steps?.length && attempt.steps.every((s) => !s.required || s.status === 'verified'));
+};
 
 export function QuestReviewsPage() {
   const [attempts, setAttempts] = useState<QuestAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedAttempt, setSelectedAttempt] = useState<QuestAttempt | null>(null);
+  const [statusFilter, setStatusFilter] = useState<AttemptFilter>('needs_review');
+  const [search, setSearch] = useState('');
 
   // Per-task modal state
   const [reviewingStep, setReviewingStep] = useState<QuestStepEvidence | null>(null);
@@ -95,10 +107,10 @@ export function QuestReviewsPage() {
         `/admin/quest-attempts/${selectedAttempt.id}/steps/${reviewingStep.step_order}`,
         {
           method: 'PATCH',
-          body: JSON.stringify({
+          body: {
             action: reviewAction,
             ...(reviewAction === 'needs_changes' ? { reason: needsChangesReason.trim() } : {}),
-          }),
+          },
         }
       );
 
@@ -118,7 +130,7 @@ export function QuestReviewsPage() {
       setAttemptActionError('');
       await apiFetch(`/admin/quest-attempts/${selectedAttempt.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ action: 'approve' }),
+        body: { action: 'approve' },
       });
       await fetchAttempts();
     } catch (cause) {
@@ -183,6 +195,28 @@ export function QuestReviewsPage() {
     selectedAttempt.status !== 'completed' &&
     pendingRequiredSteps.length === 0;
 
+  const filterCounts = useMemo(() => {
+    const needsReview = attempts.filter(isActionableAttempt).length;
+    const inProgress = attempts.filter((a) => a.status === 'in_progress' && !isActionableAttempt(a)).length;
+    const completed = attempts.filter((a) => a.status === 'completed').length;
+    return { needs_review: needsReview, in_progress: inProgress, completed, all: attempts.length };
+  }, [attempts]);
+
+  const filteredAttempts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return attempts.filter((attempt) => {
+      if (statusFilter === 'needs_review' && !isActionableAttempt(attempt)) return false;
+      if (statusFilter === 'in_progress' && (attempt.status !== 'in_progress' || isActionableAttempt(attempt))) return false;
+      if (statusFilter === 'completed' && attempt.status !== 'completed') return false;
+      if (!q) return true;
+      return `${attempt.quest_title ?? ''} ${attempt.traveler_name ?? ''} ${attempt.quest_location ?? ''} ${attempt.id}`
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [attempts, statusFilter, search]);
+
+  const attemptPage = useClientPagination(filteredAttempts, 24);
+
   return (
     <div>
       <PageHeader
@@ -192,11 +226,44 @@ export function QuestReviewsPage() {
 
       {error ? <PageError message={error} onRetry={() => void fetchAttempts()} /> : null}
 
+      <div className="filter-row" role="tablist" aria-label="Quest attempt status filter">
+        {(
+          [
+            { value: 'needs_review', label: `Needs Review (${filterCounts.needs_review})` },
+            { value: 'in_progress', label: `In Progress (${filterCounts.in_progress})` },
+            { value: 'completed', label: `Completed (${filterCounts.completed})` },
+            { value: 'all', label: `All (${filterCounts.all})` },
+          ] as Array<{ value: AttemptFilter; label: string }>
+        ).map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === tab.value}
+            className={`filter-chip${statusFilter === tab.value ? ' is-active' : ''}`}
+            onClick={() => setStatusFilter(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <AdminSearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by quest title, traveler, destination, or attempt ID…"
+        ariaLabel="Search quest attempts"
+        totalCount={attempts.length}
+        filteredCount={filteredAttempts.length}
+        shownCount={attemptPage.pageItems.length}
+        itemLabel="attempts"
+      />
+
       <div className="quest-reviews-layout">
         {/* Left Column: Attempt List */}
         <div className="quest-reviews-list">
           <div className="quest-reviews-list-head">
-            <h2 className="quest-reviews-section-label">Recent Attempts ({attempts.length})</h2>
+            <h2 className="quest-reviews-section-label">Attempts ({filteredAttempts.length})</h2>
             <button type="button" onClick={() => void fetchAttempts()} className="button button-secondary">
               Refresh list
             </button>
@@ -204,11 +271,18 @@ export function QuestReviewsPage() {
 
           {loading && attempts.length === 0 ? (
             <PageLoading label="Loading quest attempts…" />
-          ) : attempts.length === 0 ? (
-            <EmptyState title="No quest attempts found." />
+          ) : filteredAttempts.length === 0 ? (
+            <EmptyState
+              title={
+                statusFilter === 'needs_review' && attempts.length > 0
+                  ? 'No attempts currently need review. Switch to In Progress or All to inspect active travelers.'
+                  : 'No quest attempts found.'
+              }
+            />
           ) : (
-            <div className="quest-reviews-attempts">
-              {attempts.map((attempt) => {
+            <>
+              <div className="quest-reviews-attempts">
+                {attemptPage.pageItems.map((attempt) => {
                 const isSelected = selectedAttempt?.id === attempt.id;
                 const hasPendingReview = attempt.steps?.some((s) => s.status === 'pending_review');
 
@@ -257,7 +331,13 @@ export function QuestReviewsPage() {
                   </button>
                 );
               })}
-            </div>
+              </div>
+              <AdminPagination
+                page={attemptPage.page}
+                totalPages={attemptPage.totalPages}
+                onPageChange={attemptPage.setPage}
+              />
+            </>
           )}
         </div>
 

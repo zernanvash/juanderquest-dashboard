@@ -101,6 +101,8 @@ export interface Spot {
   trust_level: string;
   status: string;
   image_url?: string;
+  gps_lat?: number | string | null;
+  gps_lng?: number | string | null;
   crowd_capacity_band?: 'low' | 'medium' | 'high';
   crowd_status?: string;
   recommendation_suppressed?: boolean;

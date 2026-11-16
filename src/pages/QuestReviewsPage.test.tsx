@@ -135,7 +135,7 @@ describe('QuestReviewsPage (Plan 43 §7 & §4.5)', () => {
         '/admin/quest-attempts/attempt-1/steps/2',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({ action: 'approve' }),
+          body: { action: 'approve' },
         })
       );
     });
@@ -175,10 +175,45 @@ describe('QuestReviewsPage (Plan 43 §7 & §4.5)', () => {
         '/admin/quest-attempts/attempt-1/steps/2',
         expect.objectContaining({
           method: 'PATCH',
-          body: JSON.stringify({
+          body: {
             action: 'needs_changes',
             reason: 'The plaque is blurry and unreadable. Please retake the photo in daylight.',
-          }),
+          },
+        })
+      );
+    });
+  });
+
+  it('approves a quest attempt with a plain object body via PATCH /admin/quest-attempts/:id', async () => {
+    const readyAttempt = {
+      ...mockAttempts[0],
+      verified_steps: 2,
+      steps: [
+        mockAttempts[0].steps[0],
+        { ...mockAttempts[0].steps[1], status: 'verified' },
+      ],
+    };
+    (client.apiFetch as any).mockResolvedValueOnce([readyAttempt]);
+
+    render(<QuestReviewsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Lingayen Capitol Heritage Trail')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Lingayen Capitol Heritage Trail'));
+
+    (client.apiFetch as any).mockResolvedValueOnce({ success: true });
+    (client.apiFetch as any).mockResolvedValueOnce([{ ...readyAttempt, status: 'completed' }]);
+
+    fireEvent.click(screen.getByRole('button', { name: /Approve Quest Attempt/i }));
+
+    await waitFor(() => {
+      expect(client.apiFetch).toHaveBeenCalledWith(
+        '/admin/quest-attempts/attempt-1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: { action: 'approve' },
         })
       );
     });

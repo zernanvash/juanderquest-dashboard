@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MonthlyScheduleAdmin } from './MonthlyScheduleAdmin';
 import { JuanChoicePromotionReview } from './JuanChoicePromotionReview';
-import { JuanChoiceFestivals } from './JuanChoiceFestivals';
-import { JuanChoicePerkControls, ManifestoEditor, usePlatformStaff } from './JuanChoicePerkControls';
+import { ManifestoEditor, PERK_NAMES, perkName, usePlatformStaff } from './JuanChoicePerkControls';
 import { apiFetch, isAuthError } from './api/client';
 
 type Campaign = { id:string;slug:string;region:string;theme:string;status:string;opens_at:string;closes_at:string;is_test:boolean;candidate_count:number;ballot_count:number;
@@ -85,10 +84,13 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
         <strong>Free destination spotlight voting only</strong>
         Civic XP and stamps are nonspendable; governance and mJDQ are separate. QA drafts stay isolated from public discovery. Reviewed winners can receive a spotlight while crowd and safety gates pass; a later restriction immediately hides it.
       </div>
+      <div className="jc-quick-links">
+        {platform ? <a className="button button-secondary" href="#/juanchoice/perks">Perk controls →</a> : null}
+        <a className="button button-secondary" href="#/juanchoice/history">Round history →</a>
+        <a className="button button-secondary" href="#/festivals">Festival calendar →</a>
+      </div>
     </div>
     <MonthlyScheduleAdmin token={token} onUnauthorized={onUnauthorized} />
-    <JuanChoiceFestivals token={token} onUnauthorized={onUnauthorized} />
-    <JuanChoicePerkControls token={token} onUnauthorized={onUnauthorized} />
     {error&&<div className="load-error" role="alert">{error} <button type="button" onClick={()=>void load()}>Retry list</button></div>}
     {notice&&<p role="status" className="jc-notice">{notice}</p>}
     <div className="stitch-panel panel-section"><h3 className="jc-section-title">Create a draft round</h3>
@@ -132,6 +134,14 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
           onUnauthorized={onUnauthorized}
         />
       </div>)}</div>}</div>
+      {platform && upcoming && detail.candidates.length > 0 ? (
+        <PerkPrepMatrix
+          campaignId={detail.campaign.id}
+          candidates={detail.candidates}
+          token={token}
+          onSaved={() => void refresh(detail.campaign.id)}
+        />
+      ) : null}
       <div className="form-actions">{detail.campaign.status==='draft'&&<button type="button" className="button-approve" disabled={busy||detail.candidates.filter(item=>item.status==='eligible').length===0} onClick={()=>{if(window.confirm('Publish this round? Verify candidate safety and capacity first.'))void mutate('Publication',`/campaigns/${detail.campaign.id}/publish`);}}>Publish round</button>}{['draft','scheduled','voting','closed'].includes(detail.campaign.status)&&<button type="button" className="button-reject" disabled={busy} onClick={()=>{const text=window.prompt('Cancellation reason (at least 10 characters):');if(text&&text.trim().length>=10)void mutate('Cancellation',`/campaigns/${detail.campaign.id}/cancel`,{reason:text.trim()});else if(text)setError('Cancellation reason must contain at least 10 characters.');}}>Cancel round</button>}{['scheduled','voting','closed'].includes(detail.campaign.status)&&<button type="button" className="button-muted" disabled={busy||Date.now()<Date.parse(detail.campaign.closes_at)} onClick={()=>void mutate('Finalization',`/campaigns/${detail.campaign.id}/finalize`)}>Finalize closed round</button>}</div>
       {detail.result&&<p className="jc-notice">Final: {detail.result.valid_ballots} valid ballots · {detail.result.co_winner_ids.length} co-winner(s).{weekly?` ${detail.result.total_weighted_votes??0} weighted votes · ${detail.result.total_boost_points??0} boost points.`:''} Spotlight requires {weekly?'the automated safety gate':'active promotion clearance'} and passing crowd gates.</p>}
       {detail.result&&weekly&&<div className="jc-notice" data-testid="jc-weekly-result">
@@ -141,4 +151,150 @@ export function JuanChoiceAdmin({token,onUnauthorized}:{token?:string|null;onUna
       <div><h4>Audit</h4>{detail.audit.length===0?<p className="jc-meta">No actions recorded yet.</p>:<ul className="jc-audit">{detail.audit.map((entry,index)=><li key={`${entry.created_at}-${index}`}><span className="jc-meta">{new Date(entry.created_at).toLocaleString()}</span> · {entry.action}{entry.reason?` — ${entry.reason}`:''}</li>)}</ul>}</div>
     </div>}
   </section>;
+}
+
+const ALL_PERK_KEYS = Object.keys(PERK_NAMES);
+
+function PerkPrepMatrix({
+  campaignId,
+  candidates,
+  token,
+  onSaved,
+}: {
+  campaignId: string;
+  candidates: Candidate[];
+  token?: string | null;
+  onSaved: () => void;
+}) {
+  const [matrix, setMatrix] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(
+      candidates.map((c) => [
+        c.id,
+        (c.manifesto_perks ?? []).map((p) => p.key).filter((k): k is string => Boolean(k)),
+      ]),
+    ),
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    setMatrix(
+      Object.fromEntries(
+        candidates.map((c) => [
+          c.id,
+          (c.manifesto_perks ?? []).map((p) => p.key).filter((k): k is string => Boolean(k)),
+        ]),
+      ),
+    );
+  }, [campaignId, candidates]);
+
+  const toggle = (candidateId: string, perkKey: string) => {
+    setMatrix((current) => {
+      const existing = current[candidateId] ?? [];
+      if (existing.includes(perkKey)) {
+        return { ...current, [candidateId]: existing.filter((k) => k !== perkKey) };
+      }
+      if (existing.length >= 4) return current;
+      return { ...current, [candidateId]: [...existing, perkKey] };
+    });
+  };
+
+  const autoBalance = () => {
+    const next: Record<string, string[]> = {};
+    candidates.forEach((candidate, idx) => {
+      const p1 = ALL_PERK_KEYS[idx % ALL_PERK_KEYS.length];
+      const p2 = ALL_PERK_KEYS[(idx + 2) % ALL_PERK_KEYS.length];
+      const p3 = ALL_PERK_KEYS[(idx + 4) % ALL_PERK_KEYS.length];
+      next[candidate.id] = Array.from(new Set([p1, p2, p3]));
+    });
+    setMatrix(next);
+    setNotice('Balanced 3 distinct perks across each candidate. Review and save to apply.');
+  };
+
+  const saveAll = async () => {
+    const reason = window.prompt('Reason for updating candidate perk matrix (at least 10 characters):');
+    if (reason === null) return;
+    if (reason.trim().length < 10) {
+      setError('Audit reason must contain at least 10 characters.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      for (const candidate of candidates) {
+        const keys = matrix[candidate.id] ?? [];
+        if (keys.length === 0) continue;
+        await apiFetch(`/juanchoice/admin/campaigns/${campaignId}/candidates/${candidate.id}/manifesto`, {
+          method: 'PUT',
+          token,
+          body: { perk_keys: keys, mystery_key: null, reason: reason.trim() },
+        });
+      }
+      setNotice('All candidate perk manifestos saved.');
+      onSaved();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Batch perk save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="jc-item jc-item-wide">
+      <div className="jc-matrix-head">
+        <div>
+          <h4>Next-round perk preparation matrix</h4>
+          <p className="jc-meta">Compare and balance candidate perks before voting opens (up to 4 perks each).</p>
+        </div>
+        <div className="form-actions">
+          <button type="button" className="button-secondary" disabled={saving} onClick={autoBalance}>
+            Auto-Balance
+          </button>
+          <button type="button" className="button-approve" disabled={saving} onClick={() => void saveAll()}>
+            {saving ? 'Saving…' : 'Save all candidate perks'}
+          </button>
+        </div>
+      </div>
+      {error ? <p className="load-error" role="alert">{error}</p> : null}
+      {notice ? <p className="jc-notice" role="status">{notice}</p> : null}
+      <div className="table-scroll">
+        <table className="data-table jc-matrix-table">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              {ALL_PERK_KEYS.map((key) => (
+                <th key={key}>{perkName(key)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {candidates.map((candidate) => {
+              const selectedKeys = matrix[candidate.id] ?? [];
+              return (
+                <tr key={candidate.id}>
+                  <td><strong>{candidate.spot_name}</strong></td>
+                  {ALL_PERK_KEYS.map((key) => {
+                    const checked = selectedKeys.includes(key);
+                    return (
+                      <td key={key}>
+                        <input
+                          type="checkbox"
+                          aria-label={`${candidate.spot_name} ${perkName(key)}`}
+                          checked={checked}
+                          disabled={!checked && selectedKeys.length >= 4}
+                          onChange={() => toggle(candidate.id, key)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }

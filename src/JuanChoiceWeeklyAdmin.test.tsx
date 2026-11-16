@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JuanChoiceAdmin } from './JuanChoiceAdmin';
+import { JuanChoiceFestivals } from './JuanChoiceFestivals';
 import { JuanChoicePromotionReview } from './JuanChoicePromotionReview';
 
 const ok = (data: unknown) => Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, data }) });
@@ -71,7 +72,7 @@ describe('Plan 65 weekly JuanChoice admin', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<JuanChoiceAdmin token="t" />);
+    render(<JuanChoiceFestivals token="t" />);
 
     expect(await screen.findByText(/No festivals yet/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Festival'), { target: { value: 'Bangus Festival' } });

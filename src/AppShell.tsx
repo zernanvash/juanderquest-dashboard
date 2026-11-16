@@ -1,8 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ExternalLink, LogOut, Menu, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, LogOut, Menu, X } from 'lucide-react';
 import { Link, useRouter } from './router';
 import { useAuth } from './auth';
 import { canOpenNavItem, findNavItem, visibleNavSections } from './navigation';
+
+const NON_COLLAPSIBLE_SECTIONS = new Set(['overview', 'blockchain']);
+const COLLAPSED_STORAGE_KEY = 'jdq_admin_nav_collapsed';
+
+const readCollapsedState = (): Record<string, boolean> => {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+};
 
 const isActive = (path: string, itemPath: string): boolean =>
   itemPath === '/' ? path === '/' : path === itemPath || path.startsWith(`${itemPath}/`);
@@ -11,12 +25,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { path } = useRouter();
   const { profile, scope, selectedAreaId, setSelectedAreaId, signOut } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(readCollapsedState);
   const travelerUrl = import.meta.env.VITE_TRAVELER_URL || '/app';
   const activeItem = findNavItem(path);
   const sections = visibleNavSections(scope);
   const activeGrant = scope?.grants.find((grant) => grant.area_id === selectedAreaId);
   const activePowers = activeGrant?.powers || scope?.grants.flatMap((grant) => grant.powers) || [];
   const isDeveloper = profile?.role === 'admin' && profile?.admin_scope === 'developer';
+
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections((current) => {
+      const next = { ...current, [sectionId]: !current[sectionId] };
+      try {
+        localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore storage quota errors
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     setNavOpen(false);
@@ -58,28 +85,44 @@ export function AppShell({ children }: { children: ReactNode }) {
           {sections.map((section) => {
             const items = section.items.filter((item) => item.available && (!item.developerOnly || isDeveloper));
             if (!items.length) return null;
+            const collapsible = !NON_COLLAPSIBLE_SECTIONS.has(section.id);
+            const isCollapsed = collapsible && Boolean(collapsedSections[section.id]);
             return (
               <div key={section.id} className="shell-nav-section">
-                <p className="shell-nav-label">{section.label}</p>
-                <ul>
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(path, item.path);
-                    return (
-                      <li key={item.path}>
-                        <Link
-                          to={item.path}
-                          className={`shell-nav-link${active ? ' is-active' : ''}`}
-                          aria-current={active ? 'page' : undefined}
-                          title={item.description}
-                        >
-                          <Icon size={16} aria-hidden="true" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
+                {collapsible ? (
+                  <button
+                    type="button"
+                    className="shell-nav-toggle"
+                    aria-expanded={!isCollapsed}
+                    onClick={() => toggleSection(section.id)}
+                  >
+                    <span>{section.label}</span>
+                    {isCollapsed ? <ChevronRight size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}
+                  </button>
+                ) : (
+                  <p className="shell-nav-label">{section.label}</p>
+                )}
+                {!isCollapsed ? (
+                  <ul>
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(path, item.path);
+                      return (
+                        <li key={item.path}>
+                          <Link
+                            to={item.path}
+                            className={`shell-nav-link${active ? ' is-active' : ''}`}
+                            aria-current={active ? 'page' : undefined}
+                            title={item.description}
+                          >
+                            <Icon size={16} aria-hidden="true" />
+                            <span>{item.label}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
               </div>
             );
           })}

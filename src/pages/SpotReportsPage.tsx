@@ -5,6 +5,7 @@ import { useSelectedAreaId } from '../auth';
 import { useRouter } from '../router';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { describeError } from '../utils/errors';
 import type { Spot, SpotReport } from '../types';
 
@@ -32,6 +33,7 @@ export function SpotReportsPage() {
 
   const [reports, setReports] = useState<SpotReport[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -81,7 +83,22 @@ export function SpotReportsPage() {
   }, [load]);
 
   const spotById = useMemo(() => new Map(spots.map((spot) => [spot.id, spot])), [spots]);
-  const filtered = reports.filter((report) => statusFilter === 'all' || report.status === statusFilter);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return reports.filter((report) => {
+      if (statusFilter !== 'all' && report.status !== statusFilter) return false;
+      if (!q) return true;
+      const spot = spotById.get(report.spot_id);
+      return (
+        (spot?.name ?? '').toLowerCase().includes(q) ||
+        (spot?.municipality ?? '').toLowerCase().includes(q) ||
+        report.reason.toLowerCase().includes(q) ||
+        (report.details ?? '').toLowerCase().includes(q) ||
+        (report.reporter_name ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [reports, statusFilter, search, spotById]);
+  const { page, totalPages, pageItems: pagedReports, setPage } = useClientPagination(filtered, 24);
 
   return (
     <div>
@@ -117,6 +134,14 @@ export function SpotReportsPage() {
         ))}
       </div>
 
+      <AdminSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        placeholder="Search destination, municipality, reason, reporter…"
+        resultCount={filtered.length}
+        totalCount={reports.length}
+      />
+
       {loading ? (
         <div className="stitch-panel loading-panel">Loading destination reports…</div>
       ) : filtered.length === 0 ? (
@@ -125,8 +150,9 @@ export function SpotReportsPage() {
           <p className="page-state-title">No reports match this filter.</p>
         </div>
       ) : (
-        <div className="report-grid">
-          {filtered.map((report) => {
+        <>
+          <div className="report-grid">
+            {pagedReports.map((report) => {
             const spot = spotById.get(report.spot_id);
             return (
               <article key={report.id} className="stitch-card report-card">
@@ -175,6 +201,8 @@ export function SpotReportsPage() {
             );
           })}
         </div>
+        <AdminPagination page={page} totalPages={totalPages} totalItems={filtered.length} onPageChange={setPage} />
+        </>
       )}
     </div>
   );
