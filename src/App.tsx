@@ -11,6 +11,7 @@ import { QuestReviewsPage } from './pages/QuestReviewsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
+import { SpotPhotosPage } from './pages/SpotPhotosPage';
 import { StampsPage } from './pages/StampsPage';
 import { PlazaModerationPage } from './pages/PlazaModerationPage';
 import { QuizzesPage } from './pages/QuizzesPage';
@@ -90,6 +91,8 @@ function RouteOutlet() {
       return <QuestsPage />;
     case '/spot-reports':
       return <SpotReportsPage />;
+    case '/spot-photos':
+      return <SpotPhotosPage />;
     case '/stamps':
       return <StampsPage />;
     case '/plaza-moderation':

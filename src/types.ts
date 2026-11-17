@@ -90,6 +90,25 @@ export interface SpotReport {
   resolution_note?: string;
 }
 
+export interface SpotPhotoSubmission {
+  id: string;
+  spot_id: string;
+  user_id: string;
+  asset_id: string;
+  caption: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  reject_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  spot_name?: string;
+  spot_slug?: string;
+  spot_municipality?: string;
+  uploader_name?: string;
+  photo_url?: string;
+}
+
 export interface Spot {
   id: string;
   name: string;
