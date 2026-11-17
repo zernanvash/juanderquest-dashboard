@@ -127,6 +127,23 @@ export interface Spot {
   recommendation_suppressed?: boolean;
 }
 
+export interface SpotModerationEvent {
+  id: string;
+  spot_id: string;
+  actor: string;
+  decision: 'published' | 'held' | 'hidden_pending_review' | 'appealed' | 'removed' | 'kept_hidden';
+  reason_codes: string[];
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface FlaggedSpot extends Spot {
+  moderation_reasons?: string[];
+  moderation_messages?: string[];
+  appeal_submitted?: boolean;
+  moderation_events?: SpotModerationEvent[];
+}
+
 export interface Voucher {
   id: string;
   merchant_name: string;
