@@ -17,6 +17,7 @@ import {
   Route,
   Settings2,
   ShieldAlert,
+  Smartphone,
   Sparkles,
   Store,
   Ticket,
@@ -294,6 +295,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Activity,
         description: 'Read-only readiness, release metadata and effective feature flags.',
         available: true,
+      },
+      {
+        path: '/system/mobile-app',
+        label: 'Mobile app',
+        icon: Smartphone,
+        description: 'APK adoption by build, push deliveries, minimum supported build, and announcement banner.',
+        available: true,
+        requires: { platform: true },
       },
       {
         path: '/system/settings',

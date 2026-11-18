@@ -292,7 +292,7 @@ export type SettingValue = string | number | boolean;
 export interface SettingDefinition {
   key: string;
   label: string;
-  category: 'branding_support' | 'quiz_defaults';
+  category: 'branding_support' | 'quiz_defaults' | 'quest_funding' | 'trail_economy' | 'stamps' | 'mobile_app';
   type: 'email' | 'url' | 'text' | 'integer' | 'boolean' | 'string';
   defaultValue: SettingValue;
   min?: number;

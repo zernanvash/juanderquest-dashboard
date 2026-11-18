@@ -39,6 +39,7 @@ import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
 import { DeveloperRolesPage } from './pages/DeveloperRolesPage';
+import { MobileAppPage } from './pages/MobileAppPage';
 
 export function App() {
   return (
@@ -140,6 +141,8 @@ function RouteOutlet() {
       return <ChainPage />;
     case '/system/status':
       return <SystemStatusPage />;
+    case '/system/mobile-app':
+      return <MobileAppPage />;
     case '/system/settings':
       return <SettingsPage />;
     case '/system/developer':
