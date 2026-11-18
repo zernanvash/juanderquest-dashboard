@@ -110,14 +110,14 @@ export function GiveMjdqPage() {
 
     <section className="stitch-panel panel-section" aria-label="Give mJDQ form">
       <h2 className="section-title"><Gift size={18} /> Give</h2>
-      <form className="form-row" onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
-        <label>Traveler email or @handle
+      <form className="form-inline" onSubmit={(event) => { event.preventDefault(); void lookup(); }}>
+        <label className="settings-field">Traveler email or @handle
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="name@example.com or @handle" />
         </label>
         <button type="submit" className="button button-secondary" disabled={query.trim().length < 3}><Search size={15} /> Find</button>
       </form>
       {found && found.length === 0 && <p>No traveler with that exact email or handle.</p>}
-      {found && found.length > 1 && <label>Pick the traveler
+      {found && found.length > 1 && <label className="settings-field">Pick the traveler
         <select value={target?.id ?? ''} onChange={(event) => setTarget(found.find((u) => u.id === event.target.value) ?? null)}>
           <option value="">Choose…</option>
           {found.map((u) => <option key={u.id} value={u.id}>{who(u)} · {u.email}</option>)}
@@ -129,13 +129,15 @@ export function GiveMjdqPage() {
           <div className="metric-card"><span>Current balance</span><strong>{target.balance} mJDQ</strong></div>
           {target.is_test && <div className="metric-card"><span>Account</span><strong>Test account</strong></div>}
         </div>
-        <label>Amount (mJDQ)
+        <div className="form-inline">
+        <label className="settings-field">Amount (mJDQ)
           <input type="number" min={1} max={limits.max} value={points} onChange={(event) => setPoints(event.target.value)} />
         </label>
-        <label>Reason (shown in the audit log)
+        <label className="settings-field">Reason (shown in the audit log)
           <input value={reason} maxLength={200} onChange={(event) => setReason(event.target.value)} placeholder="Beta tester thank-you" />
         </label>
-        <button type="button" className="button" disabled={!valid || busy} onClick={() => void give()}>Give {Number.isSafeInteger(amount) && amount > 0 ? amount : ''} mJDQ</button>
+        <button type="button" className="button-approve" disabled={!valid || busy} onClick={() => void give()}>Give {Number.isSafeInteger(amount) && amount > 0 ? amount : ''} mJDQ</button>
+        </div>
       </>}
     </section>
 
@@ -145,7 +147,7 @@ export function GiveMjdqPage() {
         <button type="button" className="button button-secondary" onClick={() => void load()}><RefreshCw size={15} /> Refresh</button>
       </div>
       {loading ? <p className="loading-panel">Loading grants…</p> : grants.length === 0 ? <p>No grants yet.</p> :
-        <table className="data-table">
+        <div className="table-scroll"><table className="data-table">
           <thead><tr><th>When</th><th>Traveler</th><th>mJDQ</th><th>Reason</th><th>By</th><th>On-chain</th></tr></thead>
           <tbody>{grants.map((g) => <tr key={g.id}>
             <td>{new Date(g.created_at).toLocaleString()}</td>
@@ -159,7 +161,7 @@ export function GiveMjdqPage() {
               {g.anchor.last_error && <div className="muted">{g.anchor.last_error}</div>}
             </td>
           </tr>)}</tbody>
-        </table>}
+        </table></div>}
     </section>
   </div>;
 }
