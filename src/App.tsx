@@ -11,6 +11,7 @@ import { QuestReviewsPage } from './pages/QuestReviewsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
+import { SukiCardsPage } from './pages/SukiCardsPage';
 import { SpotPhotosPage } from './pages/SpotPhotosPage';
 import { StampsPage } from './pages/StampsPage';
 import { PlazaModerationPage } from './pages/PlazaModerationPage';
@@ -114,6 +115,8 @@ function RouteOutlet() {
       return <MerchantsPage />;
     case '/partners/vouchers':
       return <VouchersPage />;
+    case '/partners/suki':
+      return <SukiCardsPage />;
     case '/shop/cosmetics':
       return <ShopCosmeticsPage />;
     case '/shop/cosmetics/new':

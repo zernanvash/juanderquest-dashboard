@@ -119,6 +119,11 @@ export function VouchersPage() {
                   <span>
                     Cost: <strong>{voucher.cost_points} points</strong>
                   </span>
+                  {typeof voucher.used_count === 'number' && (
+                    <span>
+                      Used: <strong>{voucher.used_count} of {voucher.redeemed_count ?? voucher.used_count}</strong>
+                    </span>
+                  )}
                   <label className="voucher-status">Availability <select aria-label={`Availability for ${voucher.title}`} value={voucher.availability || 'live'} disabled={savingId === voucher.id} onChange={event => void setAvailability(voucher, event.target.value as 'live'|'preview')}><option value="preview">Preview</option><option value="live">Live</option></select></label>
                 </div>
               </div>

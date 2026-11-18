@@ -153,6 +153,9 @@ export interface Voucher {
   availability?: 'live' | 'preview';
   partner_label?: string | null;
   icon_key?: string | null;
+  /** Plan 107: redemptions of this voucher, and how many a shop has marked used (`redemptions.used_at`). */
+  redeemed_count?: number;
+  used_count?: number;
 }
 
 export type CulturalQuizStatus = 'draft' | 'published' | 'paused' | 'archived';
