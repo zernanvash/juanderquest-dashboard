@@ -5,7 +5,9 @@ import { useSelectedAreaId } from '../auth';
 import { useRouter } from '../router';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 import type { FlaggedSpot, Spot, SpotReport } from '../types';
 
@@ -164,6 +166,32 @@ export function SpotReportsPage() {
       <PageHeader
         title="Destination reports"
         description="Traveler-submitted destination reports and auto-filtered destinations. Mark each one reviewed or dismissed with a short note; every decision is audited. Use the Destinations page to unpublish or suppress a destination."
+        actions={
+          <PrintReport
+            title={activeTab === 'flagged' ? 'Flagged destinations' : 'Destination reports'}
+            filters={[
+              { label: 'View', value: activeTab },
+              ...(activeTab === 'reports' ? [{ label: 'Status', value: statusFilter }] : []),
+              ...(selectedAreaId ? [{ label: 'Area', value: selectedAreaId }] : []),
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+            ]}
+            onExportCsv={() => {
+              if (activeTab === 'flagged') {
+                downloadCsv(
+                  'flagged-destinations.csv',
+                  ['ID', 'Name', 'Municipality', 'Status', 'Reasons'],
+                  filteredFlagged.map((s) => [s.id, s.name, s.municipality, s.status ?? '', (s.moderation_reasons ?? []).join('; ')]),
+                );
+              } else {
+                downloadCsv(
+                  `destination-reports-${statusFilter}.csv`,
+                  ['ID', 'Spot ID', 'Destination', 'Reason', 'Status', 'Reporter', 'Created at'],
+                  filtered.map((r) => [r.id, r.spot_id, spotById.get(r.spot_id)?.name ?? '', r.reason, r.status, r.reporter_name ?? '', r.created_at]),
+                );
+              }
+            }}
+          />
+        }
       />
 
       {actionError ? (

@@ -6,7 +6,7 @@ import { RouterProvider } from '../router';
 import { CrowdMonitoringPage } from './CrowdMonitoringPage';
 
 vi.mock('../api/client', () => ({ apiFetch: vi.fn() }));
-vi.mock('../auth', () => ({ useAuth: vi.fn() }));
+vi.mock('../auth', () => ({ useAuth: vi.fn(), useOptionalAuth: () => auth() }));
 
 const api = vi.mocked(apiFetch);
 const auth = vi.mocked(useAuth);
@@ -97,6 +97,10 @@ describe('CrowdMonitoringPage', () => {
 
     expect(await screen.findByText('Hundred Islands')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
+
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
+    expect(printSpy).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Week' }));
     await waitFor(() =>

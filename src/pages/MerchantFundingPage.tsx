@@ -3,7 +3,9 @@ import { RefreshCw, ShieldAlert, Store } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { Link } from '../router';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
 interface MerchantFundingRow {
@@ -127,6 +129,33 @@ export function MerchantFundingPage() {
       <PageHeader
         title="Merchant funding oversight"
         description="Per-merchant simulated point balances, sponsorship volume, unmet-condition overrides, and sponsoring suspension controls."
+        actions={
+          <PrintReport
+            title="Merchant funding oversight"
+            orientation="landscape"
+            filters={[
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+              ...(includeTest ? [{ label: 'Test data', value: 'Included' }] : []),
+            ]}
+            onExportCsv={() =>
+              downloadCsv(
+                'merchant-funding-oversight.csv',
+                ['Merchant ID', 'Name', 'Municipality', 'Status', 'Sponsoring Suspended', 'Balance (pts)', 'Credited (pts)', 'Sponsored (pts)', 'Active Rounds'],
+                filtered.map((m) => [
+                  m.merchant_id,
+                  m.name,
+                  m.municipality ?? '',
+                  m.status,
+                  m.sponsoring_suspended ? 'yes' : 'no',
+                  m.balance_points,
+                  m.total_credited,
+                  m.total_sponsored,
+                  m.active_rounds_sponsored,
+                ]),
+              )
+            }
+          />
+        }
       />
 
       {error && (

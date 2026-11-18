@@ -3,7 +3,9 @@ import { Coins, RefreshCw, ShieldAlert, Store } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { Link } from '../router';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
 type Plan = { id: string; quest_id: string; quest_title?: string; round_number: number; mode: string; status: string; reward_points: number; fee_points: number; planned_completions: number; target_points: number; starts_at: string; ends_at: string; committed_points: number; live_holds: number; holds_paused?: boolean; admin_flagged?: boolean; is_test: boolean };
@@ -120,7 +122,30 @@ export function FundingPage() {
   const creditPage = useClientPagination(filteredCredits, 24);
 
   return <div>
-    <PageHeader title="Quest funding & merchant points" description="Monitor simulated point funding and make reasoned, auditable merchant adjustments. No real payment or blockchain transfer occurs." />
+    <PageHeader
+      title="Quest funding & merchant points"
+      description="Monitor simulated point funding and make reasoned, auditable merchant adjustments. No real payment or blockchain transfer occurs."
+      actions={
+        <PrintReport
+          title="Quest funding, treasury & merchant points"
+          orientation="landscape"
+          filters={[
+            ...(status ? [{ label: 'Round status', value: status }] : []),
+            ...(planSearch.trim() ? [{ label: 'Round search', value: planSearch.trim() }] : []),
+            ...(creditSearch.trim() ? [{ label: 'Credit search', value: creditSearch.trim() }] : []),
+            ...(includeTest ? [{ label: 'Test data', value: 'Included' }] : []),
+          ]}
+          onExportCsv={() =>
+            downloadCsv(
+              'quest-funding-rounds.csv',
+              ['Plan ID', 'Quest', 'Round', 'Mode', 'Status', 'Committed (pts)', 'Target (pts)', 'Live holds', 'Starts', 'Ends'],
+              filtered.map((p) => [p.id, p.quest_title || p.quest_id, p.round_number, p.mode, p.status, p.committed_points, p.target_points, p.live_holds, p.starts_at, p.ends_at]),
+            )
+          }
+          csvLabel="Export rounds CSV"
+        />
+      }
+    />
     {!fundingEnabled && <div className="status-banner" role="status"><strong>Traveler funded-quest starts are paused</strong><span>The server's <code>QUEST_FUNDING_ENABLED</code> switch is off; admin treasury, reconciliation, and ledger inspection remain active.</span></div>}
     {error && <div className="load-error" role="alert">{error}<button type="button" onClick={() => void load()}>Retry</button></div>}
     {notice && <div className="status-banner status-banner-success" role="status">{notice}</div>}

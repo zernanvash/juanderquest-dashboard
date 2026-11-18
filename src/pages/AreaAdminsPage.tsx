@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../api/client';
+import { PrintReport } from '../components/PrintReport';
+import { downloadCsv } from '../utils/csv';
 
 const POWERS = ['destinations', 'quests_quizzes', 'merchants_vouchers', 'analytics'] as const;
 type Power = typeof POWERS[number];
@@ -50,7 +52,19 @@ export function AreaAdminsPage() {
   };
 
   return <section className="page-stack">
-    <header className="page-heading"><div><p className="eyebrow">Platform access</p><h1>Area admins</h1><p>Grant LGU staff access to selected administrative areas and controls.</p></div></header>
+    <header className="page-heading">
+      <div><p className="eyebrow">Platform access</p><h1>Area admins</h1><p>Grant LGU staff access to selected administrative areas and controls.</p></div>
+      <PrintReport
+        title="Area administrators & assignments"
+        onExportCsv={() =>
+          downloadCsv(
+            'area-admin-assignments.csv',
+            ['Assignment ID', 'User', 'Email', 'Area', 'Powers', 'Status'],
+            assignments.map((a) => [a.id, a.display_name, a.email ?? '', a.area_name, a.powers.join('; '), a.revoked_at ? 'Revoked' : 'Active']),
+          )
+        }
+      />
+    </header>
     {error ? <p className="notice notice-error" role="alert">{error}</p> : null}
     {!developer ? <p className="notice">Only developers can grant or revoke area admins, because it changes the account's role. You can still change the permissions of an active assignment.</p> : null}
     {developer ? <form className="stitch-panel section-panel page-stack" onSubmit={(event) => void grant(event)}>

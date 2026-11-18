@@ -3,6 +3,7 @@ import { Activity, ArrowLeft, Download, Flame, RefreshCw, Users } from 'lucide-r
 import { apiFetch } from '../api/client';
 import { useAuth } from '../auth';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { useRouter } from '../router';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
@@ -227,6 +228,22 @@ export function CrowdMonitoringPage() {
       <PageHeader
         title={spotDetail ? `Crowd monitoring · ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring'}
         description="Aggregate traffic, on-site activity, conversion funnel, dwell proxy, and Manila-time capacity peaks. Individual travelers are never identified."
+        actions={
+          <PrintReport
+            title={spotDetail ? `Crowd monitoring — ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring overview'}
+            orientation="landscape"
+            filters={[
+              { label: 'Range', value: `${from} to ${to}` },
+              { label: 'Granularity', value: granularity },
+              { label: 'On-site window', value: `${onsiteHours}h` },
+              ...(municipality ? [{ label: 'Municipality', value: municipality }] : []),
+              ...(category ? [{ label: 'Category', value: category }] : []),
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+              ...(isPlatform && includeTest ? [{ label: 'Test data', value: 'Included' }] : []),
+            ]}
+            onExportCsv={activeData ? exportCsv : undefined}
+          />
+        }
       />
 
       <section className="stitch-panel panel-section" aria-label="Crowd filters">

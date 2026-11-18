@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Download, Flag, Lock, PauseCircle, PlayCircle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { Link } from '../router';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
@@ -173,6 +174,19 @@ export function FundingDetailPage({ planId }: { planId: string }) {
       <PageHeader
         title={plan ? `${plan.quest_title || plan.quest_id} · Round ${plan.round_number}` : `Funding plan ${planId}`}
         description="Complete plan treasury, contribution conservation, ledger movements, traveler holds, and sponsor deal conditions."
+        actions={
+          <PrintReport
+            title={plan ? `Funding plan — ${plan.quest_title || plan.quest_id} (Round ${plan.round_number})` : `Funding plan ${planId}`}
+            orientation="landscape"
+            filters={[
+              { label: 'Plan ID', value: planId },
+              ...(plan?.status ? [{ label: 'Status', value: String(plan.status) }] : []),
+              ...(txType ? [{ label: 'Transaction type', value: txType }] : []),
+            ]}
+            onExportCsv={txs.length > 0 ? exportTransactionsCsv : undefined}
+            csvLabel="Export ledger CSV"
+          />
+        }
       />
 
       {error && (

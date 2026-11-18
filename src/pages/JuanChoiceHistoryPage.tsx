@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Award } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { EmptyState, PageHeader, PageLoading } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
 type Campaign = {
@@ -156,6 +158,22 @@ export function JuanChoiceHistoryPage() {
       <PageHeader
         title="JuanChoice round history"
         description="Inspect finalized, closed, and cancelled rounds, winning manifests, and promotion audit logs."
+        actions={
+          <PrintReport
+            title={detail ? `JuanChoice round — ${detail.campaign.theme}` : 'JuanChoice round history'}
+            filters={[
+              { label: 'Status', value: statusFilter },
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+            ]}
+            onExportCsv={() =>
+              downloadCsv(
+                `juanchoice-history-${statusFilter}.csv`,
+                ['ID', 'Slug', 'Theme', 'Region', 'Status', 'Round tier', 'Ballots', 'Opens', 'Closes'],
+                filtered.map((c) => [c.id, c.slug, c.theme, c.region, c.status, c.round_tier ?? 'standard', c.ballot_count, c.opens_at, c.closes_at]),
+              )
+            }
+          />
+        }
       />
 
       {error ? (

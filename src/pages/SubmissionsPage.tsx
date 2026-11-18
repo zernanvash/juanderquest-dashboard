@@ -6,6 +6,8 @@ import { ApiError, apiFetch } from '../api/client';
 import { AdminSearchBar } from '../components/AdminSearchBar';
 import { useRouter } from '../router';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 import type { Submission } from '../types';
 
@@ -157,6 +159,23 @@ export function SubmissionsPage() {
       <PageHeader
         title="Proof submissions"
         description="Legacy single-checkpoint GPS/marker proofs awaiting review. Multi-step quest photo, AR, and QR tasks are moderated in Quest attempt reviews."
+        actions={
+          <PrintReport
+            title="Proof submissions queue"
+            filters={[
+              { label: 'Status', value: status },
+              { label: 'Data scope', value: qaFilter },
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+            ]}
+            onExportCsv={() =>
+              downloadCsv(
+                `proof-submissions-${status}.csv`,
+                ['ID', 'Quest', 'Traveler', 'Status', 'Marker code', 'Created at', 'Test'],
+                displayedSubmissions.map((s) => [s.id, s.quest_title, s.user_name, s.status, s.scanned_marker_code ?? '', s.created_at, s.is_test ? 'yes' : 'no']),
+              )
+            }
+          />
+        }
       />
 
       <div className="status-banner" role="note">
