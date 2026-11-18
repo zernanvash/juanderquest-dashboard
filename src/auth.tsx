@@ -218,6 +218,10 @@ export function useSelectedAreaId(): string | null {
   return useContext(AuthContext)?.selectedAreaId ?? null;
 }
 
+export function useOptionalAuth(): AuthValue | null {
+  return useContext(AuthContext);
+}
+
 export function useAuth(): AuthValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used inside AuthProvider');

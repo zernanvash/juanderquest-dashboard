@@ -5,7 +5,10 @@ import { useSelectedAreaId } from '../auth';
 import { useRouter } from '../router';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { useUrlFilterState } from '../utils/urlFilters';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 import type { SpotPhotoSubmission } from '../types';
 
@@ -23,7 +26,7 @@ export function SpotPhotosPage() {
   const [actionError, setActionError] = useState('');
 
   const [items, setItems] = useState<SpotPhotoSubmission[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -110,6 +113,23 @@ export function SpotPhotosPage() {
       <PageHeader
         title="Photos"
         description="Traveler-submitted photos for existing destinations. Approve clear, accurate photos to add them to the gallery, or reject with a reason."
+        actions={
+          <PrintReport
+            title="Destination photos moderation log"
+            filters={[
+              { label: 'Status', value: statusFilter },
+              ...(selectedAreaId ? [{ label: 'Area', value: selectedAreaId }] : []),
+              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+            ]}
+            onExportCsv={() =>
+              downloadCsv(
+                `spot-photos-${statusFilter}.csv`,
+                ['ID', 'Destination', 'Municipality', 'Uploader', 'Status', 'Caption', 'Created at'],
+                filtered.map((p) => [p.id, p.spot_name ?? p.spot_id, p.spot_municipality ?? '', p.uploader_name ?? p.user_id, p.status, p.caption ?? '', p.created_at]),
+              )
+            }
+          />
+        }
       />
 
       {actionError ? (

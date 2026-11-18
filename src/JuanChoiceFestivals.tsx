@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, isAuthError } from './api/client';
+import { PrintReport } from './components/PrintReport';
+import { downloadCsv } from './utils/csv';
 
 // Plan 65: a weekly round whose Monday falls inside a festival becomes a Special Festival round
 // with stronger perks. The table starts empty; admins add festivals here.
@@ -56,7 +58,19 @@ export function JuanChoiceFestivals({token,onUnauthorized}:{token?:string|null;o
   };
 
   return <div className="stitch-panel panel-section" aria-labelledby="jc-festivals-title">
-    <h3 id="jc-festivals-title" className="jc-section-title">Festival calendar</h3>
+    <div className="section-heading-row">
+      <h3 id="jc-festivals-title" className="jc-section-title">Festival calendar</h3>
+      <PrintReport
+        title="Festival calendar"
+        onExportCsv={() =>
+          downloadCsv(
+            'festival-calendar.csv',
+            ['Name', 'Municipality', 'First day', 'Last day', 'Boosts voting', 'QA only'],
+            items.map((f) => [f.name, f.municipality ?? '', f.starts_on.slice(0, 10), f.ends_on.slice(0, 10), f.boosts_voting === false ? 'no' : 'yes', f.is_test ? 'yes' : 'no']),
+          )
+        }
+      />
+    </div>
     <p className="jc-sub">Festivals show on the app's Almanac with their exact dates. With the boost switch on, a weekly round that opens during the festival also becomes a Special Festival election with stronger perks. Every 4th week is special too.</p>
     {error&&<div className="load-error" role="alert">{error}</div>}
     <form onSubmit={event=>void save(event)} className="form-grid" aria-label={editingId?'Edit festival':'Add festival'}>

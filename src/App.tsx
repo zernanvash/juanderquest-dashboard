@@ -24,6 +24,7 @@ import { JuanChoiceHistoryPage } from './pages/JuanChoiceHistoryPage';
 import { FestivalCalendarPage } from './pages/FestivalCalendarPage';
 import { AffiliatesPage } from './pages/AffiliatesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { CrowdMonitoringPage } from './pages/CrowdMonitoringPage';
 import { AreaAdminsPage } from './pages/AreaAdminsPage';
 import { canOpenNavItem, findNavItem } from './navigation';
 import { GovernancePage } from './pages/GovernancePage';
@@ -32,11 +33,14 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
+import { FundingDetailPage } from './pages/FundingDetailPage';
+import { MerchantFundingPage } from './pages/MerchantFundingPage';
 import { GiveMjdqPage } from './pages/GiveMjdqPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
 import { DeveloperRolesPage } from './pages/DeveloperRolesPage';
+import { MobileAppPage } from './pages/MobileAppPage';
 
 export function App() {
   return (
@@ -126,8 +130,12 @@ function RouteOutlet() {
       return <TrailStudioPage />;
     case '/economy/funding':
       return <FundingPage />;
+    case '/economy/merchants-funding':
+      return <MerchantFundingPage />;
     case '/economy/give-mjdq':
       return <GiveMjdqPage />;
+    case '/insights/crowd':
+      return <CrowdMonitoringPage />;
     case '/insights/analytics':
       return <AnalyticsPage />;
     case '/insights/governance':
@@ -136,6 +144,8 @@ function RouteOutlet() {
       return <ChainPage />;
     case '/system/status':
       return <SystemStatusPage />;
+    case '/system/mobile-app':
+      return <MobileAppPage />;
     case '/system/settings':
       return <SettingsPage />;
     case '/system/developer':
@@ -143,6 +153,10 @@ function RouteOutlet() {
     case '/system/economy-lab':
       return economyLabEnabled ? <EconomyLabPage /> : <NotFoundPage />;
     default:
+      if (path.startsWith('/economy/funding/')) {
+        const planId = decodeURIComponent(path.slice('/economy/funding/'.length));
+        if (planId && !planId.includes('/')) return <FundingDetailPage planId={planId} />;
+      }
       return <NotFoundPage />;
   }
 }

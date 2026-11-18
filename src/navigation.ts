@@ -18,6 +18,7 @@ import {
   Route,
   Settings2,
   ShieldAlert,
+  Smartphone,
   Sparkles,
   Store,
   Ticket,
@@ -235,6 +236,13 @@ export const NAV_SECTIONS: NavSection[] = [
         available: true,
       },
       {
+        path: '/economy/merchants-funding',
+        label: 'Merchant funding',
+        icon: Store,
+        description: 'Per-merchant simulated balances, sponsorship volume, unmet overrides and sponsoring suspension.',
+        available: true,
+      },
+      {
         path: '/economy/give-mjdq',
         label: 'Give mJDQ',
         icon: Gift,
@@ -248,6 +256,14 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'insights',
     label: 'Insights',
     items: [
+      {
+        path: '/insights/crowd',
+        label: 'Crowd monitoring',
+        icon: Activity,
+        description: 'Destination traffic, on-site activity, Manila-time heatmaps and conversion funnels.',
+        available: true,
+        requires: { power: 'analytics' },
+      },
       {
         path: '/insights/analytics',
         label: 'Web analytics',
@@ -288,6 +304,14 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Activity,
         description: 'Read-only readiness, release metadata and effective feature flags.',
         available: true,
+      },
+      {
+        path: '/system/mobile-app',
+        label: 'Mobile app',
+        icon: Smartphone,
+        description: 'APK adoption by build, push deliveries, minimum supported build, and announcement banner.',
+        available: true,
+        requires: { platform: true },
       },
       {
         path: '/system/settings',

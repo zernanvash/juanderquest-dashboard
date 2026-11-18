@@ -3,12 +3,14 @@ import { ChevronLeft, ChevronRight, Eye, Plus, Save, Send, X } from 'lucide-reac
 import { apiFetch } from '../api/client';
 import { describeError } from '../utils/errors';
 import {
+  MAX_QUIZ_QUESTIONS,
   QUIZ_LANGUAGES,
   QUIZ_QUESTION_TYPES,
   QuizDraftDefaults,
   QuizDraftForm,
   applyQuestionType,
   createEmptyQuizDraft,
+  createQuestion,
   toQuizPayload,
   validateQuizBasics,
   validateQuizDraft,
@@ -208,7 +210,7 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
           <div>
             <h2 id="quiz-editor-title">{mode === 'edit' ? 'Edit quiz draft' : 'Create a cultural quiz'}</h2>
             <p className="quiz-editor-subtitle">
-              Five location-bound questions with exactly one correct answer each. Published versions become immutable.
+              1 to {MAX_QUIZ_QUESTIONS} location-bound questions with clear explanations. Published versions become immutable.
             </p>
           </div>
           <button type="button" className="quiz-editor-close" onClick={onClose} aria-label="Close quiz editor" disabled={saving}>
@@ -331,6 +333,25 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
                   <legend>
                     <Plus size={13} aria-hidden="true" /> Question {questionIndex + 1}
                   </legend>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+                    <button
+                      type="button"
+                      className="button-muted"
+                      disabled={draft.questions.length <= 1}
+                      aria-label={`Remove question ${questionIndex + 1}`}
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          questions:
+                            current.questions.length <= 1
+                              ? current.questions
+                              : current.questions.filter((_, idx) => idx !== questionIndex),
+                        }))
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
                   <label className="quiz-field">
                     <span>Question type</span>
                     <select
@@ -520,6 +541,25 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
                 </fieldset>
               );
             })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <span className="quiz-hint">
+                {draft.questions.length} of {MAX_QUIZ_QUESTIONS} questions
+              </span>
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={draft.questions.length >= MAX_QUIZ_QUESTIONS}
+                onClick={() =>
+                  setDraft((current) =>
+                    current.questions.length >= MAX_QUIZ_QUESTIONS
+                      ? current
+                      : { ...current, questions: [...current.questions, createQuestion()] },
+                  )
+                }
+              >
+                <Plus size={14} aria-hidden="true" /> Add question
+              </button>
+            </div>
           </div>
         ) : null}
 

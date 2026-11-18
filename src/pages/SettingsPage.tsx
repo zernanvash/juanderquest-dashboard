@@ -8,6 +8,10 @@ import type { SettingDefinition, SettingValue, SettingsAuditEntry, SettingsSnaps
 const CATEGORY_LABELS: Record<SettingDefinition['category'], string> = {
   branding_support: 'Branding and support',
   quiz_defaults: 'Quiz defaults (new drafts only)',
+  quest_funding: 'Quest funding',
+  trail_economy: 'Trail economy',
+  stamps: 'Stamps',
+  mobile_app: 'Mobile app control',
 };
 
 interface ConflictState {

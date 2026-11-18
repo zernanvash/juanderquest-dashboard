@@ -33,8 +33,13 @@ interface AffiliateApplication {
   preferred_contact_method?: string;
   sponsorship_goals: string[];
   proposal_details?: string;
-  status: 'received' | 'in_review' | 'approved' | 'rejected' | 'needs_changes';
+  status: 'received' | 'in_review' | 'approved' | 'rejected' | 'needs_changes' | 'appealed';
   version?: number;
+  appeal_message?: string | null;
+  appealed_at?: string | null;
+  previous_rejection_reason?: string | null;
+  resubmission_count?: number | null;
+  resubmitted_at?: string | null;
   reviewer_id?: string | null;
   reviewer_notes?: string | null;
   applicant_feedback?: string | null;
@@ -187,6 +192,8 @@ export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
         return <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#ffedd5', color: '#9a3412', fontSize: '12px', fontWeight: 600 }}>Needs Changes</span>;
       case 'rejected':
         return <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 600 }}>Rejected</span>;
+      case 'appealed':
+        return <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#ede9fe', color: '#5b21b6', fontSize: '12px', fontWeight: 600 }}>Appealed</span>;
       default:
         return <span style={{ padding: '4px 8px', borderRadius: '12px', background: '#f3f4f6', color: '#374151', fontSize: '12px' }}>{status}</span>;
     }
@@ -238,7 +245,7 @@ export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
         </div>
 
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {['all', 'received', 'in_review', 'needs_changes', 'approved', 'rejected'].map((st) => (
+          {['all', 'received', 'in_review', 'appealed', 'needs_changes', 'approved', 'rejected'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -411,6 +418,29 @@ export function AffiliateReviewCenter({ token }: AffiliateReviewCenterProps) {
               <div style={{ marginBottom: '20px', background: '#f9fafb', padding: '12px', borderRadius: '8px' }}>
                 <span style={{ fontSize: '11px', color: '#888', fontWeight: 600 }}>PROPOSAL DETAILS</span>
                 <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#333', lineHeight: 1.5 }}>{selectedApp.proposal_details}</p>
+              </div>
+            )}
+
+            {/* Appeal & resubmission context (WP-8 / migration 101; rendered only when present) */}
+            {(selectedApp.appeal_message || selectedApp.previous_rejection_reason || typeof selectedApp.resubmission_count === 'number') && (
+              <div style={{ marginBottom: '20px', background: '#f5f3ff', border: '1px solid #ddd6fe', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#5b21b6', fontWeight: 700 }}>MERCHANT APPEAL & RESUBMISSION</span>
+                {selectedApp.appeal_message && (
+                  <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#3b0764' }}>
+                    <strong>Appeal message:</strong> {selectedApp.appeal_message}
+                  </p>
+                )}
+                {selectedApp.previous_rejection_reason && (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#6b21a8' }}>
+                    <strong>Previous rejection reason:</strong> {selectedApp.previous_rejection_reason}
+                  </p>
+                )}
+                {typeof selectedApp.resubmission_count === 'number' && (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b21a8' }}>
+                    <strong>Resubmission count:</strong> {selectedApp.resubmission_count}
+                    {selectedApp.appealed_at ? ` · Appealed ${new Date(selectedApp.appealed_at).toLocaleString()}` : ''}
+                  </p>
+                )}
               </div>
             )}
 

@@ -45,7 +45,9 @@ export const QUIZ_LANGUAGES: { value: CulturalQuizLanguage; label: string }[] = 
   { value: 'pag', label: 'Pangasinan' },
 ];
 
-const createQuestion = (): QuizDraftQuestion => ({
+export const MAX_QUIZ_QUESTIONS = 5;
+
+export const createQuestion = (): QuizDraftQuestion => ({
   questionType: 'multiple_choice',
   mediaUrl: '',
   questionText: '',
@@ -116,7 +118,7 @@ export const createEmptyQuizDraft = (defaults: QuizDraftDefaults = {}): QuizDraf
   timeLimitMinutes: defaults.timeLimitMinutes ?? 30,
   cooldownHours: defaults.cooldownHours ?? 24,
   isTest: false,
-  questions: Array.from({ length: 5 }, createQuestion),
+  questions: [createQuestion()],
 });
 
 export const validateQuizBasics = (draft: QuizDraftForm): string[] => {
@@ -147,7 +149,9 @@ export const validateQuizBasics = (draft: QuizDraftForm): string[] => {
 
 export const validateQuizQuestions = (draft: QuizDraftForm): string[] => {
   const errors: string[] = [];
-  if (draft.questions.length !== 5) errors.push('Exactly 5 questions are required.');
+  if (draft.questions.length < 1 || draft.questions.length > MAX_QUIZ_QUESTIONS) {
+    errors.push(`Between 1 and ${MAX_QUIZ_QUESTIONS} questions are required.`);
+  }
   draft.questions.forEach((question, index) => {
     const label = `Question ${index + 1}`;
     if (question.questionText.trim().length < 3) errors.push(`${label}: question text must be at least 3 characters.`);

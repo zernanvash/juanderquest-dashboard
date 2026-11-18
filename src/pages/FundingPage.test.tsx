@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '../api/client';
+import { RouterProvider } from '../router';
 import { FundingPage } from './FundingPage';
 
 vi.mock('../api/client', () => ({ apiFetch: vi.fn() }));
@@ -26,7 +27,11 @@ describe('admin funded quest operations', () => {
   });
 
   it('requires a selected original credit for negative correction and posts an audited reversal', async () => {
-    render(<FundingPage />);
+    render(
+      <RouterProvider>
+        <FundingPage />
+      </RouterProvider>,
+    );
     await screen.findByText('Reconciliation clean');
 
     fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'merchant-1' } });

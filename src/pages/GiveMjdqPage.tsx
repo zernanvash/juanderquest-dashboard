@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, Gift, RefreshCw, Search } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { PageHeader } from '../components/PageState';
+import { PrintReport } from '../components/PrintReport';
+import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
 // Owner 2026-11-18: "build the give mjdq feature in dashboard (for beta testing, simulated points for now)
@@ -104,7 +106,23 @@ export function GiveMjdqPage() {
   };
 
   return <div>
-    <PageHeader title="Give mJDQ" description={`Simulated beta points for travelers. Each grant is a balanced ledger transaction with an audit record, and is anchored on Polygon Amoy (testnet). Up to ${limits.max} per grant and ${limits.daily} per admin per day.`} />
+    <PageHeader
+      title="Give mJDQ"
+      description={`Simulated beta points for travelers. Each grant is a balanced ledger transaction with an audit record, and is anchored on Polygon Amoy (testnet). Up to ${limits.max} per grant and ${limits.daily} per admin per day.`}
+      actions={
+        <PrintReport
+          title="Give mJDQ grant log"
+          filters={[...(query.trim() ? [{ label: 'Lookup query', value: query.trim() }] : [])]}
+          onExportCsv={() =>
+            downloadCsv(
+              'mjdq-grants.csv',
+              ['When', 'Traveler', 'Points', 'Balance after', 'Reason', 'Admin', 'Anchor status'],
+              grants.map((g) => [g.created_at, who(g.user), g.points, g.balance_after, g.reason, g.admin.display_name ?? g.admin.id, g.anchor.status]),
+            )
+          }
+        />
+      }
+    />
     {error && <div className="load-error" role="alert">{error}</div>}
     {notice && <div className="status-banner status-banner-success" role="status">{notice}</div>}
 

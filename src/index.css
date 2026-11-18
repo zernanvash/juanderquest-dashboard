@@ -2105,6 +2105,35 @@ a.chain-mono:hover { text-decoration: underline; }
 .button-neutral { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; background: #f1efe9; color: #514532; border: 1px solid #d5c4ac; white-space: nowrap; }
 .button-neutral:hover { background: #e7e3d8; }
 .button-neutral:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Plan 109 shared controls, treasury stacked bar, and pills */
+.row-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #f1efe9; color: #514532; border: 1px solid rgba(88, 47, 14, 0.14); }
+.pill-warn { background: rgba(255, 183, 3, 0.18); color: #6b4b00; border-color: rgba(255, 183, 3, 0.45); }
+.pill-danger { background: #f8e6e6; color: #bc4749; border-color: rgba(188, 71, 73, 0.35); }
+.pill-success { background: #e3f3ea; color: #2d6a4f; border-color: rgba(45, 106, 79, 0.35); }
+.text-danger { color: #bc4749; }
+.action-cluster { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.checkbox-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #514532; cursor: pointer; }
+.compact-list { margin: 0; padding-left: 16px; font-size: 12px; color: #514532; }
+.stacked-bar { display: flex; width: 100%; height: 14px; border-radius: 999px; overflow: hidden; background: #e9e8e4; border: 1px solid rgba(88, 47, 14, 0.1); }
+.stacked-bar-segment { height: 100%; min-width: 3px; }
+.stacked-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: #514532; }
+.stacked-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.stacked-legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.bar-chart { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 96px 1fr 90px; align-items: center; gap: 10px; font-size: 12px; }
+.bar-label { color: #514532; font-weight: 600; }
+.bar-track { display: flex; flex-direction: column; gap: 3px; background: #faf9f5; padding: 3px; border-radius: 6px; }
+.bar-fill { height: 7px; border-radius: 4px; min-width: 2px; }
+.bar-fill-primary { background: #2d6a4f; }
+.bar-fill-secondary { background: #ffb703; }
+.bar-value { text-align: right; color: #514532; font-variant-numeric: tabular-nums; }
+.heatmap-table { border-collapse: collapse; font-size: 11px; width: 100%; }
+.heatmap-table th, .heatmap-table td { border: 1px solid rgba(88, 47, 14, 0.1); padding: 4px; text-align: center; min-width: 26px; }
+.heatmap-table th { background: #faf9f5; color: #514532; font-weight: 700; }
+.sort-header { background: transparent; border: none; font: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #837560; cursor: pointer; padding: 0; }
+.sort-header:hover { color: #582f0e; }
 .section-panel, .notice-panel { padding: 20px; }
 .dev-roles .stitch-panel { padding: 18px 20px; }
 .dev-roles .stitch-panel + .stitch-panel { margin-top: 14px; }
@@ -2141,3 +2170,135 @@ a.chain-mono:hover { text-decoration: underline; }
 .audit-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #514532; }
 
 .plaza-moderation-page .input { padding: 9px 11px; border: 1px solid #d5c4ac; border-radius: var(--radius-sm); background: #ffffff; color: #1b1c1a; font: inherit; font-size: 13px; }
+
+/* WP-3: Printable report chrome & @media print rules */
+.print-report-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.print-only-header, .print-only-footer { display: none; }
+
+@page {
+  size: A4 portrait;
+  margin: 14mm 12mm 16mm 12mm;
+  @bottom-left {
+    content: "JuanderQuest — official record";
+    font-size: 9pt;
+    color: #514532;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 9pt;
+    color: #514532;
+  }
+}
+
+@media print {
+  .shell-sidebar,
+  .shell-topbar,
+  .shell-mobile-bar,
+  .skip-link,
+  .no-print,
+  .page-actions button,
+  .filters-bar,
+  .filter-pills,
+  .pagination-row,
+  .admin-pagination,
+  button,
+  input,
+  select,
+  textarea {
+    display: none !important;
+  }
+
+  body,
+  .shell,
+  .shell-main,
+  .shell-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .print-only-header {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    border-bottom: 2px solid #582f0e;
+  }
+
+  .print-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .print-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  }
+
+  .print-record-kicker {
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #837560;
+  }
+
+  .print-report-title {
+    font-family: var(--font-heading);
+    font-size: 16pt;
+    font-weight: 800;
+    color: #582f0e;
+  }
+
+  .print-header-meta,
+  .print-header-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 9pt;
+    color: #514532;
+  }
+
+  .print-only-footer {
+    display: flex !important;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 8px;
+    border-top: 1px solid #d5c4ac;
+    font-size: 9pt;
+    color: #514532;
+  }
+
+  .stitch-panel,
+  .stitch-card {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  .stitch-card,
+  .report-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

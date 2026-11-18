@@ -2,7 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { BarChart3, TrendingUp, Users, MousePointerClick, Eye, Compass, Calendar, ArrowUpRight } from 'lucide-react';
 import { apiFetch, isAuthError } from './api/client';
 import { useSelectedAreaId } from './auth';
+import { PrintReport } from './components/PrintReport';
 import { withArea } from './utils/areaQuery';
+import { downloadCsv } from './utils/csv';
 
 interface Summary {
   days: number;
@@ -104,7 +106,24 @@ export function WebAnalyticsDashboard({
             First-party aggregate usage metrics across <code style={{ color: '#2D6A4F', background: '#D8F3DC', padding: '2px 6px', borderRadius: '4px' }}>juanderquest.app</code>.
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <PrintReport
+            title="Web analytics"
+            filters={[
+              { label: 'Window', value: `Last ${days} days` },
+              ...(selectedAreaId ? [{ label: 'Area', value: selectedAreaId }] : []),
+            ]}
+            onExportCsv={
+              data
+                ? () =>
+                    downloadCsv(
+                      `web-analytics-${days}d.csv`,
+                      ['Date', 'Views', 'Unique sessions'],
+                      (data.daily ?? []).map((d) => [d.date, d.views, d.sessions]),
+                    )
+                : undefined
+            }
+          />
           <label style={{ fontSize: '13px', fontWeight: 700, color: '#582F0E', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Calendar size={16} />
             Reporting window:
