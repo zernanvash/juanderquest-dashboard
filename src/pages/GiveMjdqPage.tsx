@@ -154,7 +154,7 @@ export function GiveMjdqPage() {
             <td>{g.reason}</td>
             <td>{g.admin.display_name ?? g.admin.id}</td>
             <td>
-              {ANCHOR_LABEL[g.anchor.status] ?? g.anchor.status}
+              <span>{ANCHOR_LABEL[g.anchor.status] ?? g.anchor.status}</span>
               {g.anchor.explorer_url && <> · <a href={g.anchor.explorer_url} target="_blank" rel="noreferrer">Polygonscan <ExternalLink size={12} /></a></>}
               {g.anchor.last_error && <div className="muted">{g.anchor.last_error}</div>}
             </td>
