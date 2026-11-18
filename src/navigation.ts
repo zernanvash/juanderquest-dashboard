@@ -226,6 +226,13 @@ export const NAV_SECTIONS: NavSection[] = [
         available: true,
       },
       {
+        path: '/economy/merchants-funding',
+        label: 'Merchant funding',
+        icon: Store,
+        description: 'Per-merchant simulated balances, sponsorship volume, unmet overrides and sponsoring suspension.',
+        available: true,
+      },
+      {
         path: '/economy/give-mjdq',
         label: 'Give mJDQ',
         icon: Gift,

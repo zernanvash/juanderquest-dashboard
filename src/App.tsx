@@ -31,6 +31,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
+import { FundingDetailPage } from './pages/FundingDetailPage';
+import { MerchantFundingPage } from './pages/MerchantFundingPage';
 import { GiveMjdqPage } from './pages/GiveMjdqPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
@@ -123,6 +125,8 @@ function RouteOutlet() {
       return <TrailStudioPage />;
     case '/economy/funding':
       return <FundingPage />;
+    case '/economy/merchants-funding':
+      return <MerchantFundingPage />;
     case '/economy/give-mjdq':
       return <GiveMjdqPage />;
     case '/insights/analytics':
@@ -140,6 +144,10 @@ function RouteOutlet() {
     case '/system/economy-lab':
       return economyLabEnabled ? <EconomyLabPage /> : <NotFoundPage />;
     default:
+      if (path.startsWith('/economy/funding/')) {
+        const planId = decodeURIComponent(path.slice('/economy/funding/'.length));
+        if (planId && !planId.includes('/')) return <FundingDetailPage planId={planId} />;
+      }
       return <NotFoundPage />;
   }
 }

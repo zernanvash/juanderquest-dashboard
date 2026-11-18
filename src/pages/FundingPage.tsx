@@ -3,20 +3,20 @@ import { Coins, RefreshCw, ShieldAlert, Store } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { PageHeader } from '../components/PageState';
+import { Link } from '../router';
 import { describeError } from '../utils/errors';
 
-type Plan = { id: string; quest_id: string; round_number: number; mode: string; status: string; reward_points: number; fee_points: number; planned_completions: number; target_points: number; starts_at: string; ends_at: string; committed_points: number; live_holds: number; is_test: boolean };
-type PlanDetail = Record<string, any>;
+type Plan = { id: string; quest_id: string; quest_title?: string; round_number: number; mode: string; status: string; reward_points: number; fee_points: number; planned_completions: number; target_points: number; starts_at: string; ends_at: string; committed_points: number; live_holds: number; holds_paused?: boolean; admin_flagged?: boolean; is_test: boolean };
 type Merchant = { id: string; name: string; status: string; is_published: boolean };
 type Credit = { id: string; merchant_id: string; merchant_name: string; source: string; points: number | string; reversible_points?: number | string; reference: string; ledger_group_id: string; reverses_credit_id?: string | null; created_at: string };
 
 export function FundingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [selected, setSelected] = useState<PlanDetail | null>(null);
   const [treasury, setTreasury] = useState<any>(null);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [status, setStatus] = useState('');
+  const [includeTest, setIncludeTest] = useState(false);
   const [planSearch, setPlanSearch] = useState('');
   const [creditSearch, setCreditSearch] = useState('');
   const [fundingEnabled, setFundingEnabled] = useState(true);
@@ -34,7 +34,7 @@ export function FundingPage() {
     setError('');
     try {
       const [overview, funds, creditRows, merchantRows] = await Promise.all([
-        apiFetch<{ items: Plan[]; funding_enabled?: boolean }>('/admin/quest-funding', { signal }),
+        apiFetch<{ items: Plan[]; funding_enabled?: boolean }>(`/admin/quest-funding${includeTest ? '?include_test=true' : ''}`, { signal }),
         apiFetch<any>('/admin/treasury', { signal }),
         apiFetch<{ items: Credit[]; funding_enabled?: boolean }>('/admin/merchant-point-credits?limit=200', { signal }),
         apiFetch<Merchant[]>('/admin/merchants', { signal }),
@@ -49,21 +49,13 @@ export function FundingPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, []);
+  }, [includeTest]);
 
   useEffect(() => {
     const controller = new AbortController();
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
-
-  const inspect = async (plan: Plan) => {
-    setBusy(plan.id);
-    setError('');
-    try { setSelected(await apiFetch<PlanDetail>(`/admin/funding-plans/${encodeURIComponent(plan.id)}`)); }
-    catch (cause) { setError(describeError(cause, 'Funding plan detail unavailable.')); }
-    finally { setBusy(''); }
-  };
 
   const close = async (plan: Plan) => {
     if (!window.confirm('Close this round? Active reward reservations will still be honored.')) return;
@@ -73,7 +65,6 @@ export function FundingPage() {
       await apiFetch(`/admin/funding-plans/${encodeURIComponent(plan.id)}/close`, { method: 'POST', body: { idempotency_key: crypto.randomUUID() } });
       setNotice('Funding round closed. Existing traveler holds remain honored.');
       await load();
-      setSelected(null);
     } catch (cause) { setError(describeError(cause, 'Could not close funding plan.')); }
     finally { setBusy(''); }
   };
@@ -139,7 +130,7 @@ export function FundingPage() {
       {loading ? <p className="loading-panel">Loading funding operations…</p> : treasury ? <><div className="metric-grid">{(treasury.accounts ?? []).map((account: any) => <div className="metric-card" key={account.id}><span>{account.is_test ? 'Test ' : 'Platform '}{account.kind}</span><strong>{account.balance_points} points</strong></div>)}</div><div className={`status-banner ${treasury.reconciliation?.ok ? 'status-banner-success' : 'status-banner-danger'}`} role="status"><strong>{treasury.reconciliation?.ok ? 'Reconciliation clean' : 'Reconciliation mismatch detected'}</strong><span>Plans {treasury.reconciliation?.plans?.mismatches ?? 0} · Accounts {treasury.reconciliation?.point_accounts?.mismatches ?? 0} · Ledger groups {treasury.reconciliation?.ledger_groups?.mismatches ?? 0}</span></div>{treasury.reconciliation?.ok === false && <pre className="code-panel">{JSON.stringify(treasury.reconciliation, null, 2)}</pre>}</> : <p>Funding metrics unavailable.</p>}
     </section>
 
-    <section className="stitch-panel panel-section"><div className="section-heading-row"><div><h2 className="section-title"><Store size={18} /> Funding rounds</h2><p className="section-description">Inspect funded and historical rounds. Test records are clearly marked.</p></div></div>
+    <section className="stitch-panel panel-section"><div className="section-heading-row"><div><h2 className="section-title"><Store size={18} /> Funding rounds</h2><p className="section-description">Inspect funded and historical rounds. Test records are excluded by default.</p></div><div className="action-cluster"><label className="checkbox-inline"><input type="checkbox" checked={includeTest} onChange={(e) => setIncludeTest(e.target.checked)} /> Include test data</label><Link to="/economy/merchants-funding" className="button button-secondary">Merchant funding</Link></div></div>
       <AdminSearchBar
         value={planSearch}
         onChange={setPlanSearch}
@@ -165,8 +156,7 @@ export function FundingPage() {
           },
         ]}
       />
-      {loading ? <p>Loading plans…</p> : filtered.length === 0 ? <p className="empty-state">No funding plans found.</p> : <><div className="table-scroll"><table className="data-table"><thead><tr><th>Quest / round</th><th>State</th><th>Model</th><th>Funding</th><th>Reservations</th><th>Window</th><th>Actions</th></tr></thead><tbody>{planPage.pageItems.map(plan => <tr key={plan.id}><td><strong>{plan.quest_id}</strong><small>Round {plan.round_number}{plan.is_test ? ' · TEST' : ''}</small></td><td>{plan.status}</td><td>{plan.mode}</td><td>{plan.committed_points} / {plan.target_points} pts</td><td>{plan.live_holds} live</td><td>{new Date(plan.starts_at).toLocaleDateString()} — {new Date(plan.ends_at).toLocaleDateString()}</td><td><button className="button button-secondary" disabled={!!busy} onClick={() => void inspect(plan)}>Inspect</button>{['active', 'scheduled'].includes(plan.status) && <button className="button button-danger" disabled={!!busy} onClick={() => void close(plan)}>Close</button>}</td></tr>)}</tbody></table></div><AdminPagination page={planPage.page} totalPages={planPage.totalPages} onPageChange={planPage.setPage} /></>}
-      {selected && <div className="detail-drawer"><div className="section-heading-row"><h3>Plan {selected.id}</h3><button onClick={() => setSelected(null)} aria-label="Close detail">×</button></div><pre className="code-panel">{JSON.stringify(selected, null, 2)}</pre></div>}
+      {loading ? <p>Loading plans…</p> : filtered.length === 0 ? <p className="empty-state">No funding plans found.</p> : <><div className="table-scroll"><table className="data-table"><thead><tr><th>Quest / round</th><th>State</th><th>Model</th><th>Funding</th><th>Reservations</th><th>Window</th><th>Actions</th></tr></thead><tbody>{planPage.pageItems.map(plan => <tr key={plan.id}><td><strong>{plan.quest_title || plan.quest_id}</strong><small>Round {plan.round_number}{plan.is_test ? ' · TEST' : ''}{plan.holds_paused ? ' · HOLDS PAUSED' : ''}{plan.admin_flagged ? ' · FLAGGED' : ''}</small></td><td>{plan.status}</td><td>{plan.mode}</td><td>{plan.committed_points} / {plan.target_points} pts</td><td>{plan.live_holds} live</td><td>{new Date(plan.starts_at).toLocaleDateString()} — {new Date(plan.ends_at).toLocaleDateString()}</td><td><Link className="button button-secondary" to={`/economy/funding/${encodeURIComponent(plan.id)}`}>Inspect</Link>{['active', 'scheduled'].includes(plan.status) && <button className="button button-danger" disabled={!!busy} onClick={() => void close(plan)}>Close</button>}</td></tr>)}</tbody></table></div><AdminPagination page={planPage.page} totalPages={planPage.totalPages} onPageChange={planPage.setPage} /></>}
     </section>
 
     <section className="stitch-panel panel-section" aria-label="Admin merchant point adjustments">

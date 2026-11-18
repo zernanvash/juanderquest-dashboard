@@ -2105,6 +2105,22 @@ a.chain-mono:hover { text-decoration: underline; }
 .button-neutral { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; background: #f1efe9; color: #514532; border: 1px solid #d5c4ac; white-space: nowrap; }
 .button-neutral:hover { background: #e7e3d8; }
 .button-neutral:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Plan 109 shared controls, treasury stacked bar, and pills */
+.row-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #f1efe9; color: #514532; border: 1px solid rgba(88, 47, 14, 0.14); }
+.pill-warn { background: rgba(255, 183, 3, 0.18); color: #6b4b00; border-color: rgba(255, 183, 3, 0.45); }
+.pill-danger { background: #f8e6e6; color: #bc4749; border-color: rgba(188, 71, 73, 0.35); }
+.pill-success { background: #e3f3ea; color: #2d6a4f; border-color: rgba(45, 106, 79, 0.35); }
+.text-danger { color: #bc4749; }
+.action-cluster { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.checkbox-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #514532; cursor: pointer; }
+.compact-list { margin: 0; padding-left: 16px; font-size: 12px; color: #514532; }
+.stacked-bar { display: flex; width: 100%; height: 14px; border-radius: 999px; overflow: hidden; background: #e9e8e4; border: 1px solid rgba(88, 47, 14, 0.1); }
+.stacked-bar-segment { height: 100%; min-width: 3px; }
+.stacked-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: #514532; }
+.stacked-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.stacked-legend-item i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
 .section-panel, .notice-panel { padding: 20px; }
 .dev-roles .stitch-panel { padding: 18px 20px; }
 .dev-roles .stitch-panel + .stitch-panel { margin-top: 14px; }
