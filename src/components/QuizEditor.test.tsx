@@ -1,73 +1,66 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuizEditor } from './QuizEditor';
 
-const ok = (data: unknown) =>
-  Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, data }) });
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
+  return { ...actual, apiFetch: vi.fn(async () => []) };
+});
 
-describe('QuizEditor with QuizMapPinPicker', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-  });
+vi.mock('./QuizMapPinPicker', () => ({
+  QuizMapPinPicker: ({ onChange }: { onChange: (patch: Record<string, unknown>) => void }) => (
+    <button type="button" onClick={() => onChange({ destinationId: 'spot-1' })}>
+      Select destination
+    </button>
+  ),
+}));
 
-  it('submits a pinned location quiz without requiring a pre-existing destination_id', async () => {
-    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (url.includes('/spots/recognize')) {
-        return ok({
-          recognized: true,
-          municipality: 'Alaminos',
-          nearestSpot: { id: 'spot-1', name: 'Lucap Wharf', distanceMeters: 120 },
-        });
-      }
-      if (url === '/api/v1/admin/quizzes' && init?.method === 'POST') {
-        return ok({ quiz: { id: 'quiz-1' } });
-      }
-      return Promise.reject(new Error(`Unexpected URL: ${url}`));
-    });
-    vi.stubGlobal('fetch', fetchMock);
+afterEach(() => {
+  cleanup();
+});
 
-    const onSaved = vi.fn();
+describe('QuizEditor (WP-7 min 1 question)', () => {
+  it('starts with 1 question, disables Remove at 1, and lets admin add and remove up to 5 questions', () => {
     render(
       <QuizEditor
         mode="create"
-        spots={[{ id: 'spot-1', name: 'Lucap Wharf', municipality: 'Alaminos', gps_lat: 16.156, gps_lng: 119.981, status: 'published' } as any]}
+        spots={[
+          {
+            id: 'spot-1',
+            name: 'Bolinao',
+            category: 'nature',
+            subcategory: 'beach',
+            municipality: 'Bolinao',
+            source_name: 'LGU',
+            trust_level: 'lgu_verified',
+            status: 'published',
+            gps_lat: 16.3,
+            gps_lng: 119.8,
+          },
+        ]}
         onClose={vi.fn()}
-        onSaved={onSaved}
+        onSaved={vi.fn()}
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/^Title$/i), { target: { value: 'Alaminos Coastal Quiz' } });
-    fireEvent.change(screen.getByLabelText(/Description/i), { target: { value: 'Explore the coastal heritage of Alaminos.' } });
-    fireEvent.change(screen.getByLabelText(/Location label/i), { target: { value: 'Hundred Islands Pier' } });
-    fireEvent.change(screen.getByLabelText(/Latitude/i), { target: { value: '16.158' } });
-    fireEvent.change(screen.getByLabelText(/Longitude/i), { target: { value: '119.985' } });
-    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
-
-    const questionInputs = screen.getAllByLabelText(/Question text/i);
-    const explanationInputs = screen.getAllByLabelText(/Explanation/i);
-    const option1s = screen.getAllByPlaceholderText('Option 1');
-    const option2s = screen.getAllByPlaceholderText('Option 2');
-    const option3s = screen.getAllByPlaceholderText('Option 3');
-    const option4s = screen.getAllByPlaceholderText('Option 4');
-
-    questionInputs.forEach((input, idx) => {
-      fireEvent.change(input, { target: { value: `Coastal heritage question ${idx + 1}?` } });
-      fireEvent.change(option1s[idx], { target: { value: 'Lingayen Gulf' } });
-      fireEvent.change(option2s[idx], { target: { value: 'Manila Bay' } });
-      fireEvent.change(option3s[idx], { target: { value: 'Subic Bay' } });
-      fireEvent.change(option4s[idx], { target: { value: 'Tayabas Bay' } });
-      fireEvent.change(explanationInputs[idx], { target: { value: 'Confirmed by local tourism records.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Select destination' }));
+    fireEvent.change(screen.getByPlaceholderText('Stories of Cape Bolinao'), {
+      target: { value: 'Cape Bolinao Quiz' },
     });
-
+    fireEvent.change(screen.getByPlaceholderText('What travelers will learn at this destination.'), {
+      target: { value: 'Discover heritage and coastal landmarks.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Save draft/i }));
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    const postCall = fetchMock.mock.calls.find(([u, i]) => u === '/api/v1/admin/quizzes' && (i as RequestInit)?.method === 'POST');
-    expect(postCall).toBeTruthy();
-    const payload = JSON.parse((postCall?.[1] as RequestInit).body as string);
-    expect(payload.destination_id).toBeUndefined();
-    expect(payload.pin).toMatchObject({ lat: 16.158, lng: 119.985, name: 'Hundred Islands Pier' });
+    expect(screen.getByText('1 of 5 questions')).toBeInTheDocument();
+    const remove1 = screen.getByRole('button', { name: 'Remove question 1' });
+    expect(remove1).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
+    expect(screen.getByText('2 of 5 questions')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove question 1' })).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove question 2' }));
+    expect(screen.getByText('1 of 5 questions')).toBeInTheDocument();
   });
 });

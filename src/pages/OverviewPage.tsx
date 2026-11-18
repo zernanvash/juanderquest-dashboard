@@ -66,7 +66,7 @@ interface OverviewData {
   errors: string[];
 }
 
-const AWAITING_AFFILIATE = new Set(['received', 'in_review', 'needs_changes']);
+const AWAITING_AFFILIATE = new Set(['received', 'in_review', 'needs_changes', 'appealed']);
 
 export function OverviewPage() {
   const { scope, selectedAreaId } = useAuth();

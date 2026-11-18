@@ -1,36 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { applyQuestionType, createEmptyQuizDraft, toQuizPayload, validateQuizDraft } from './quizDraft';
+import { applyQuestionType, createEmptyQuizDraft, createQuestion, toQuizPayload, validateQuizDraft } from './quizDraft';
 
 describe('quiz draft validation', () => {
-  it('reports missing basics on an empty draft', () => {
-    const errors = validateQuizDraft(createEmptyQuizDraft());
+  it('starts a new draft with 1 blank question and reports missing basics', () => {
+    const empty = createEmptyQuizDraft();
+    expect(empty.questions).toHaveLength(1);
+    const errors = validateQuizDraft(empty);
     expect(errors).toContain('Pin a location on the map or choose a published destination.');
     expect(errors).toContain('Title must be at least 3 characters.');
     expect(errors).toContain('Description must be at least 10 characters.');
   });
 
-  it('requires exactly one correct answer per question', () => {
+  it('requires exactly one correct answer per question and names the incomplete question', () => {
     const draft = createEmptyQuizDraft();
     draft.destinationId = 'spot-1';
     draft.title = 'Cape Bolinao Stories';
     draft.description = 'A quiz about the cape and its coastal heritage.';
-    draft.questions = draft.questions.map((question, index) => ({
-      questionText: `Question ${index + 1}?`,
+    draft.questions = [createQuestion(), createQuestion()].map((_question, index) => ({
+      questionText: index === 0 ? 'Question 1?' : '',
       explanation: 'Because the source confirms it.',
       sourceUrl: '',
       options: [
         { text: 'A', isCorrect: true },
-        { text: 'B', isCorrect: true },
+        { text: 'B', isCorrect: index === 0 },
         { text: 'C', isCorrect: false },
         { text: 'D', isCorrect: false },
       ],
     }));
 
     const errors = validateQuizDraft(draft);
-    expect(errors.filter((error) => error.includes('mark exactly one correct answer'))).toHaveLength(5);
+    expect(errors).toContain('Question 1: mark exactly one correct answer (currently 2).');
+    expect(errors).toContain('Question 2: question text must be at least 3 characters.');
   });
 
-  it('accepts a complete draft and maps it to the API payload', () => {
+  it('accepts a minimal 1-question draft and maps it to the API payload', () => {
     const draft = createEmptyQuizDraft();
     draft.destinationId = 'spot-1';
     draft.title = 'Cape Bolinao Stories';
@@ -40,17 +43,19 @@ describe('quiz draft validation', () => {
     draft.xpReward = 40;
     draft.timeLimitMinutes = 20;
     draft.cooldownHours = 48;
-    draft.questions = draft.questions.map((question, index) => ({
-      questionText: `Question ${index + 1}?`,
-      explanation: 'Because the source confirms it.',
-      sourceUrl: 'https://example.com/source',
-      options: [
-        { text: 'A', isCorrect: false },
-        { text: 'B', isCorrect: true },
-        { text: 'C', isCorrect: false },
-        { text: 'D', isCorrect: false },
-      ],
-    }));
+    draft.questions = [
+      {
+        questionText: 'Question 1?',
+        explanation: 'Because the source confirms it.',
+        sourceUrl: 'https://example.com/source',
+        options: [
+          { text: 'A', isCorrect: false },
+          { text: 'B', isCorrect: true },
+          { text: 'C', isCorrect: false },
+          { text: 'D', isCorrect: false },
+        ],
+      },
+    ];
 
     expect(validateQuizDraft(draft)).toEqual([]);
 
@@ -63,7 +68,7 @@ describe('quiz draft validation', () => {
       time_limit_minutes: 20,
       cooldown_hours: 48,
     });
-    expect(payload.questions).toHaveLength(5);
+    expect(payload.questions).toHaveLength(1);
     expect(payload.questions[0]).toMatchObject({ ordinal: 1, source_url: 'https://example.com/source' });
     expect(payload.questions[0].options).toHaveLength(4);
     expect(payload.questions.every((question) => question.options.filter((option) => option.is_correct).length === 1)).toBe(true);
@@ -91,6 +96,7 @@ describe('quiz draft validation', () => {
     draft.destinationId = 'spot-1';
     draft.title = 'Cape Bolinao Stories';
     draft.description = 'A quiz about the cape and its coastal heritage.';
+    draft.questions = Array.from({ length: 5 }, () => createQuestion());
 
     draft.questions[0] = {
       questionType: 'multiple_choice',
