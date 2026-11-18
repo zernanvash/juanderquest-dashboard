@@ -247,6 +247,14 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Insights',
     items: [
       {
+        path: '/insights/crowd',
+        label: 'Crowd monitoring',
+        icon: Activity,
+        description: 'Destination traffic, on-site activity, Manila-time heatmaps and conversion funnels.',
+        available: true,
+        requires: { power: 'analytics' },
+      },
+      {
         path: '/insights/analytics',
         label: 'Web analytics',
         icon: BarChart3,

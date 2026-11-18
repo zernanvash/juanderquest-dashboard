@@ -23,6 +23,7 @@ import { JuanChoiceHistoryPage } from './pages/JuanChoiceHistoryPage';
 import { FestivalCalendarPage } from './pages/FestivalCalendarPage';
 import { AffiliatesPage } from './pages/AffiliatesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { CrowdMonitoringPage } from './pages/CrowdMonitoringPage';
 import { AreaAdminsPage } from './pages/AreaAdminsPage';
 import { canOpenNavItem, findNavItem } from './navigation';
 import { GovernancePage } from './pages/GovernancePage';
@@ -129,6 +130,8 @@ function RouteOutlet() {
       return <MerchantFundingPage />;
     case '/economy/give-mjdq':
       return <GiveMjdqPage />;
+    case '/insights/crowd':
+      return <CrowdMonitoringPage />;
     case '/insights/analytics':
       return <AnalyticsPage />;
     case '/insights/governance':
