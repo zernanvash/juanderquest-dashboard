@@ -416,4 +416,18 @@ describe('admin authentication and routed shell', () => {
     expect(juanChoiceToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('link', { name: /promotional voting/i })).toBeInTheDocument();
   });
+
+  it('highlights only Perk controls on /juanchoice/perks and renders one search bar on /submissions', async () => {
+    window.history.replaceState(null, '', '/#/juanchoice/perks');
+    vi.stubGlobal('fetch', adminFetchMock());
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: /juanchoice perk controls/i });
+
+    expect(screen.getByRole('link', { name: /^perk controls$/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: /^promotional voting$/i })).not.toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(screen.getByRole('link', { name: /^proof submissions$/i }));
+    await screen.findByRole('heading', { level: 1, name: /proof submissions/i });
+    expect(screen.getAllByRole('searchbox', { name: /search proof submissions/i })).toHaveLength(1);
+  });
 });

@@ -199,12 +199,14 @@ export function SpotPhotosPage() {
                         }
                       />
                     </label>
-                    <button type="button" disabled={saving === item.id} onClick={() => void approve(item)}>
-                      Approve
-                    </button>
-                    <button type="button" disabled={saving === item.id} onClick={() => void reject(item)}>
-                      Reject
-                    </button>
+                    <div className="report-action-buttons">
+                      <button type="button" className="button button-approve" disabled={saving === item.id} onClick={() => void approve(item)}>
+                        Approve
+                      </button>
+                      <button type="button" className="button button-reject" disabled={saving === item.id} onClick={() => void reject(item)}>
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 ) : item.reject_reason ? (
                   <p className="report-resolution">

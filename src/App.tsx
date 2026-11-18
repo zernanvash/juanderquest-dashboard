@@ -74,7 +74,7 @@ function RouteOutlet() {
   const { path } = useRouter();
   const { scope } = useAuth();
   const navItem = findNavItem(path);
-  if (navItem && !canOpenNavItem(navItem, scope)) return <section className="stitch-panel"><p className="eyebrow">Access denied</p><h1>Not available for your area</h1><p>Your account does not have permission to open this section.</p></section>;
+  if (navItem && !canOpenNavItem(navItem, scope)) return <section className="stitch-panel notice-panel"><p className="eyebrow">Access denied</p><h1>Not available for your area</h1><p>Your account does not have permission to open this section.</p></section>;
 
   switch (path) {
     case '/':

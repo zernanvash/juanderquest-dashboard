@@ -380,10 +380,10 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
                                 onClick={() => updateQuestion(questionIndex, (target) => { target.mediaUrl = photo.url; })}
                                 aria-pressed={selected}
                                 style={{
-                                  border: selected ? '2px solid var(--accent, #f59e0b)' : '1px solid rgba(255,255,255,0.16)',
+                                  border: selected ? '2px solid #d97706' : '1px solid #d5c4ac',
                                   borderRadius: '6px',
                                   padding: '4px',
-                                  background: selected ? 'rgba(245,158,11,0.14)' : 'transparent',
+                                  background: selected ? 'rgba(245,158,11,0.14)' : '#ffffff',
                                   cursor: 'pointer',
                                   display: 'flex',
                                   flexDirection: 'column',
@@ -409,7 +409,7 @@ export function QuizEditor({ mode, quizId, spots, defaults, onClose, onSaved }: 
                           <img
                             src={question.mediaUrl}
                             alt={`Selected clue for question ${questionIndex + 1}`}
-                            style={{ width: '120px', height: '76px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)' }}
+                            style={{ width: '120px', height: '76px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #d5c4ac' }}
                           />
                           <span className="quiz-hint">Selected destination photo</span>
                         </div>

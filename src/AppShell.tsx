@@ -18,8 +18,10 @@ const readCollapsedState = (): Record<string, boolean> => {
   }
 };
 
-const isActive = (path: string, itemPath: string): boolean =>
-  itemPath === '/' ? path === '/' : path === itemPath || path.startsWith(`${itemPath}/`);
+const isActive = (activeNavPath: string | undefined, path: string, itemPath: string): boolean => {
+  if (activeNavPath) return itemPath === activeNavPath;
+  return itemPath === '/' ? path === '/' : path === itemPath || path.startsWith(`${itemPath}/`);
+};
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { path } = useRouter();
@@ -106,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <ul>
                     {items.map((item) => {
                       const Icon = item.icon;
-                      const active = isActive(path, item.path);
+                      const active = isActive(activeItem?.path, path, item.path);
                       return (
                         <li key={item.path}>
                           <Link

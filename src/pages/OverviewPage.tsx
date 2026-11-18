@@ -382,7 +382,11 @@ export function OverviewPage() {
               <div>
                 <p className="overview-card-label">API service</p>
                 <p className={`overview-card-value ${readinessTone}`}>
-                  {readinessError ? 'Unreachable' : readiness ? readiness.status.replace(/_/g, ' ') : 'Checking…'}
+                  {readinessError
+                    ? 'Unreachable'
+                    : readiness
+                      ? (typeof readiness.status === 'string' ? readiness.status.replace(/_/g, ' ') : readiness.ready ? 'ready' : 'unknown')
+                      : 'Checking…'}
                 </p>
                 <p className="overview-card-hint">
                   {readinessError ? readinessError : lastUpdated ? `Checked at ${lastUpdated}` : 'Waiting for readiness check'}

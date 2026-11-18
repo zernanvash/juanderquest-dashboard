@@ -11,7 +11,7 @@ export function JuanChoicePerksPage() {
         description="JuanderQuest platform staff controls for live perk suspensions, normal/festival perk values, and recent changes."
       />
       {!platform ? (
-        <div className="stitch-panel">
+        <div className="stitch-panel notice-panel">
           <p className="jc-meta">Perk controls are restricted to JuanderQuest platform staff.</p>
         </div>
       ) : (

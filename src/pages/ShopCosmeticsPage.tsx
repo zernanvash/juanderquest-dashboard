@@ -237,7 +237,7 @@ export function ShopCosmeticsPage() {
 
       {activeId ? (
         <div className="modal-backdrop" role="presentation">
-          <section className="stitch-panel" role="dialog" aria-modal="true" aria-labelledby="grant-title">
+          <section className="stitch-panel modal-panel" role="dialog" aria-modal="true" aria-labelledby="grant-title" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <h2 id="grant-title">Grant to traveler</h2>
             <label className="settings-field">
               Traveler ID

@@ -306,12 +306,18 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const findNavItem = (path: string): NavItem | null => {
+  let prefixMatch: NavItem | null = null;
   for (const section of NAV_SECTIONS) {
     for (const item of section.items) {
-      if (item.path === path || (item.path !== '/' && path.startsWith(`${item.path}/`))) return item;
+      if (item.path === path) return item;
+      if (item.path !== '/' && path.startsWith(`${item.path}/`)) {
+        if (!prefixMatch || item.path.length > prefixMatch.path.length) {
+          prefixMatch = item;
+        }
+      }
     }
   }
-  return null;
+  return prefixMatch;
 };
 
 export interface NavigationScope { platform: boolean; grants: Array<{ area_id: string; area_name: string; powers: string[] }> }

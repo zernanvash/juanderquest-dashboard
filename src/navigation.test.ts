@@ -37,4 +37,11 @@ describe('area administrator navigation policy', () => {
     expect(visibleNavSections(null)).toEqual([]);
     expect(canOpenNavItem(findNavItem('/destinations'), null)).toBe(false);
   });
+
+  it('prefers exact nested nav items over parent prefixes', () => {
+    expect(findNavItem('/juanchoice')?.path).toBe('/juanchoice');
+    expect(findNavItem('/juanchoice/perks')?.path).toBe('/juanchoice/perks');
+    expect(findNavItem('/juanchoice/history')?.path).toBe('/juanchoice/history');
+    expect(findNavItem('/shop/cosmetics/new')?.path).toBe('/shop/cosmetics');
+  });
 });

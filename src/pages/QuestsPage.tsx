@@ -143,11 +143,21 @@ export function QuestsPage() {
                 </span>
               </div>
               {quest.status === 'published' ? (
-                <button type="button" disabled={saving === quest.id} onClick={() => void setStatus(quest, 'paused')}>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  disabled={saving === quest.id}
+                  onClick={() => void setStatus(quest, 'paused')}
+                >
                   Pause
                 </button>
               ) : quest.status === 'paused' || quest.status === 'draft' ? (
-                <button type="button" disabled={saving === quest.id} onClick={() => void setStatus(quest, 'published')}>
+                <button
+                  type="button"
+                  className="button button-approve"
+                  disabled={saving === quest.id}
+                  onClick={() => void setStatus(quest, 'published')}
+                >
                   Publish
                 </button>
               ) : null}

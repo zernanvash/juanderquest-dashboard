@@ -105,14 +105,14 @@ export function StampsPage() {
   };
 
   return (
-    <div>
+    <div className="stamps-page">
       <PageHeader
         title="Stamps & Question of the Day"
         description="Daily missions travelers earn stamps from, the Question of the Day bank, and which question runs on which Manila date."
       />
       {error ? (
         <div className="load-error" role="alert">
-          {error} <button type="button" onClick={() => void load()}>Retry</button>
+          {error} <button type="button" className="button button-secondary" onClick={() => void load()}>Retry</button>
         </div>
       ) : null}
       {notice ? (
@@ -123,40 +123,45 @@ export function StampsPage() {
       {loading && !stats ? <div className="stitch-panel loading-panel">Loading stamps…</div> : null}
 
       {stats ? (
-        <section className="stitch-panel" aria-label="Today">
-          <h2>Today ({stats.date})</h2>
-          <div className="filter-row">
-            <span>Claims: {stats.claims_today}</span>
-            <span>Missions done: {stats.missions_completed_today}</span>
-            <span>Travelers: {stats.travelers_today}</span>
-            <span>Weekly cap hits: {stats.weekly_cap_hits}</span>
-            <span>Stamps held: {stats.outstanding_balance}</span>
+        <section className="stitch-panel stamps-panel" aria-label="Today">
+          <h2 className="section-title">Today{stats.date ? ` (${stats.date})` : ''}</h2>
+          <div className="stamps-stats-row">
+            <span className="stamps-stat-pill">Claims: {stats.claims_today}</span>
+            <span className="stamps-stat-pill">Missions done: {stats.missions_completed_today}</span>
+            <span className="stamps-stat-pill">Travelers: {stats.travelers_today}</span>
+            <span className="stamps-stat-pill">Weekly cap hits: {stats.weekly_cap_hits}</span>
+            <span className="stamps-stat-pill">Stamps held: {stats.outstanding_balance}</span>
           </div>
         </section>
       ) : null}
 
-      <section className="stitch-panel" aria-label="Daily missions">
-        <h2>Daily missions</h2>
-        <ul>
-          {missions.map((item) => (
-            <li key={item.id}>
-              {item.title} · {item.stamps} stamps{item.on_site ? ' · on site' : ''} · {item.active ? 'active' : 'off'}{' '}
-              <button
-                type="button"
-                onClick={() =>
-                  void run(
-                    () =>
-                      apiFetch(`/admin/stamps/missions/${item.id}`, { method: 'PATCH', body: { active: !item.active } }),
-                    item.active ? 'Mission turned off.' : 'Mission turned on.',
-                  )
-                }
-              >
-                {item.active ? 'Turn off' : 'Turn on'}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={createMission} aria-label="New mission">
+      <section className="stitch-panel stamps-panel" aria-label="Daily missions">
+        <h2 className="section-title">Daily missions</h2>
+        {missions.length ? (
+          <ul className="stamps-list">
+            {missions.map((item) => (
+              <li key={item.id} className="stamps-list-item">
+                <span>
+                  {item.title} · {item.stamps} stamps{item.on_site ? ' · on site' : ''} · {item.active ? 'active' : 'off'}
+                </span>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() =>
+                    void run(
+                      () =>
+                        apiFetch(`/admin/stamps/missions/${item.id}`, { method: 'PATCH', body: { active: !item.active } }),
+                      item.active ? 'Mission turned off.' : 'Mission turned on.',
+                    )
+                  }
+                >
+                  {item.active ? 'Turn off' : 'Turn on'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form className="form-grid" onSubmit={createMission} aria-label="New mission">
           <label>
             Kind
             <input value={mission.kind} onChange={(e) => setMission({ ...mission, kind: e.target.value })} />
@@ -175,90 +180,102 @@ export function StampsPage() {
               onChange={(e) => setMission({ ...mission, stamps: Number(e.target.value) })}
             />
           </label>
-          <label>
+          <label className="form-check">
             <input
               type="checkbox"
               checked={mission.on_site}
               onChange={(e) => setMission({ ...mission, on_site: e.target.checked })}
-            />{' '}
+            />
             On site
           </label>
-          <button type="submit">Add mission</button>
+          <div className="form-actions">
+            <button type="submit" className="button button-approve">Add mission</button>
+          </div>
         </form>
       </section>
 
-      <section className="stitch-panel" aria-label="Question bank">
-        <h2>Question of the Day bank</h2>
-        <ul>
-          {questions.map((question) => (
-            <li key={question.id}>
-              {editing?.id === question.id ? (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void run(
-                      () =>
-                        apiFetch(`/admin/stamps/qotd/questions/${question.id}`, {
-                          method: 'PATCH',
-                          body: { question_text: editing.question_text, explanation: editing.explanation },
-                        }),
-                      'Question updated.',
-                    ).then(() => setEditing(null));
-                  }}
-                >
-                  <input
-                    aria-label="Edit question"
-                    value={editing.question_text}
-                    onChange={(e) => setEditing({ ...editing, question_text: e.target.value })}
-                  />
-                  <input
-                    aria-label="Edit explanation"
-                    value={editing.explanation}
-                    onChange={(e) => setEditing({ ...editing, explanation: e.target.value })}
-                  />
-                  <button type="submit">Save</button>
-                  <button type="button" onClick={() => setEditing(null)}>
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <>
-                  {question.question_text} · {question.active ? 'in rotation' : 'candidate'}{' '}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setEditing({
-                        id: question.id,
-                        question_text: question.question_text,
-                        explanation: question.explanation,
-                      })
-                    }
+      <section className="stitch-panel stamps-panel" aria-label="Question bank">
+        <h2 className="section-title">Question of the Day bank</h2>
+        {questions.length ? (
+          <ul className="stamps-list">
+            {questions.map((question) => (
+              <li key={question.id} className="stamps-list-item">
+                {editing?.id === question.id ? (
+                  <form
+                    className="form-inline"
+                    style={{ width: '100%' }}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void run(
+                        () =>
+                          apiFetch(`/admin/stamps/qotd/questions/${question.id}`, {
+                            method: 'PATCH',
+                            body: { question_text: editing.question_text, explanation: editing.explanation },
+                          }),
+                        'Question updated.',
+                      ).then(() => setEditing(null));
+                    }}
                   >
-                    Edit
-                  </button>
-                  {!question.active ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void run(
-                          () =>
-                            apiFetch(`/admin/stamps/qotd/questions/${question.id}`, {
-                              method: 'PATCH',
-                              body: { active: true },
-                            }),
-                          'Question promoted to the rotation.',
-                        )
-                      }
-                    >
-                      Promote
+                    <input
+                      aria-label="Edit question"
+                      value={editing.question_text}
+                      onChange={(e) => setEditing({ ...editing, question_text: e.target.value })}
+                    />
+                    <input
+                      aria-label="Edit explanation"
+                      value={editing.explanation}
+                      onChange={(e) => setEditing({ ...editing, explanation: e.target.value })}
+                    />
+                    <button type="submit" className="button button-approve">Save</button>
+                    <button type="button" className="button button-secondary" onClick={() => setEditing(null)}>
+                      Cancel
                     </button>
-                  ) : null}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={createQuestion} aria-label="New question">
+                  </form>
+                ) : (
+                  <>
+                    <span>
+                      {question.question_text} · {question.active ? 'in rotation' : 'candidate'}
+                    </span>
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() =>
+                          setEditing({
+                            id: question.id,
+                            question_text: question.question_text,
+                            explanation: question.explanation,
+                          })
+                        }
+                      >
+                        Edit
+                      </button>
+                      {!question.active ? (
+                        <button
+                          type="button"
+                          className="button button-approve"
+                          onClick={() =>
+                            void run(
+                              () =>
+                                apiFetch(`/admin/stamps/qotd/questions/${question.id}`, {
+                                  method: 'PATCH',
+                                  body: { active: true },
+                                }),
+                              'Question promoted to the rotation.',
+                            )
+                          }
+                        >
+                          Promote
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form className="form-grid" onSubmit={createQuestion} aria-label="New question">
           <label>
             Question
             <input
@@ -271,35 +288,39 @@ export function StampsPage() {
             <input value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} />
           </label>
           {draft.options.map((option, index) => (
-            <label key={index}>
-              Option {index + 1}
-              <input
-                value={option.option_text}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    options: draft.options.map((o, i) => (i === index ? { ...o, option_text: e.target.value } : o)),
-                  })
-                }
-              />
-              <input
-                type="radio"
-                name="qotd-correct"
-                aria-label={`Option ${index + 1} is correct`}
-                checked={option.is_correct}
-                onChange={() =>
-                  setDraft({ ...draft, options: draft.options.map((o, i) => ({ ...o, is_correct: i === index })) })
-                }
-              />
+            <label key={index} className="stamps-option-field">
+              <span>Option {index + 1}</span>
+              <span className="stamps-option-row">
+                <input
+                  value={option.option_text}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      options: draft.options.map((o, i) => (i === index ? { ...o, option_text: e.target.value } : o)),
+                    })
+                  }
+                />
+                <input
+                  type="radio"
+                  name="qotd-correct"
+                  aria-label={`Option ${index + 1} is correct`}
+                  checked={option.is_correct}
+                  onChange={() =>
+                    setDraft({ ...draft, options: draft.options.map((o, i) => ({ ...o, is_correct: i === index })) })
+                  }
+                />
+              </span>
             </label>
           ))}
-          <button type="submit">Add question</button>
+          <div className="form-actions">
+            <button type="submit" className="button button-approve">Add question</button>
+          </div>
         </form>
       </section>
 
-      <section className="stitch-panel" aria-label="Schedule">
-        <h2>Schedule a date</h2>
-        <form onSubmit={scheduleQuestion}>
+      <section className="stitch-panel stamps-panel" aria-label="Schedule">
+        <h2 className="section-title">Schedule a date</h2>
+        <form className="form-grid" onSubmit={scheduleQuestion}>
           <label>
             Manila date
             <input
@@ -322,9 +343,11 @@ export function StampsPage() {
               ))}
             </select>
           </label>
-          <button type="submit" disabled={!schedule.manila_date || !schedule.question_id}>
-            Schedule
-          </button>
+          <div className="form-actions">
+            <button type="submit" className="button button-approve" disabled={!schedule.manila_date || !schedule.question_id}>
+              Schedule
+            </button>
+          </div>
         </form>
       </section>
     </div>

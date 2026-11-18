@@ -178,17 +178,6 @@ export function SubmissionsPage() {
         <QueueVisualAnalytics submissions={submissions} />
       ) : null}
 
-      <AdminSearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Search by quest title, traveler, marker code, or submission ID…"
-        ariaLabel="Search proof submissions"
-        totalCount={submissions.length}
-        filteredCount={displayedSubmissions.length}
-        shownCount={pageItems.length}
-        itemLabel="submissions"
-      />
-
       <div className="filter-row">
         <span className="filter-label">Status</span>
         {STATUS_FILTERS.map((option) => (

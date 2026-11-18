@@ -191,7 +191,7 @@ export function ShopCosmeticEditorPage() {
         <div className="stitch-panel loading-panel">Loading cosmetic…</div>
       ) : (
         <div className="cosmetic-editor-grid">
-          <section className="stitch-panel">
+          <section className="stitch-panel cosmetic-editor-panel">
             <h2 className="section-title">Configuration</h2>
             <form className="form-grid" onSubmit={save}>
               <label>

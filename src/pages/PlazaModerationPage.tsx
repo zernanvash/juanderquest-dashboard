@@ -172,7 +172,7 @@ export function PlazaModerationPage() {
               <p className="page-state-title">
                 {reports.length === 0 ? `No ${reportStatus} reports found.` : 'No Plaza reports match your search.'}
               </p>
-              <p style={{ color: 'var(--muted, #94a3b8)', fontSize: '0.875rem' }}>
+              <p style={{ color: '#837560', fontSize: '0.875rem' }}>
                 {reports.length === 0
                   ? (reportStatus === 'open' ? 'All clear! No comments currently require moderation.' : 'No resolved report history.')
                   : 'Try clearing the search query.'}
@@ -198,10 +198,10 @@ export function PlazaModerationPage() {
                     </div>
 
                     <div style={{ margin: '12px 0' }}>
-                      <p style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-bright, #f8fafc)', margin: '0 0 4px 0' }}>
+                      <p style={{ fontWeight: 700, fontSize: '1rem', color: '#1b1c1a', margin: '0 0 4px 0' }}>
                         "{comment.body}"
                       </p>
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--muted, #94a3b8)', margin: 0 }}>
+                      <p style={{ fontSize: '0.8125rem', color: '#837560', margin: 0 }}>
                         By <strong>{comment.author_display_name}</strong> · {new Date(comment.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -209,30 +209,31 @@ export function PlazaModerationPage() {
                     {activity ? (
                       <div
                         style={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                          backgroundColor: '#f7f5f0',
                           padding: '8px 12px',
                           borderRadius: 6,
                           fontSize: '0.8125rem',
+                          color: '#514532',
                           marginBottom: 12,
                         }}
                       >
-                        <span style={{ color: 'var(--muted, #94a3b8)' }}>On activity: </span>
+                        <span style={{ color: '#837560' }}>On activity: </span>
                         <strong>{activity.subject_title}</strong>{' '}
-                        <span style={{ opacity: 0.7 }}>({activity.verb.replace(/_/g, ' ')})</span>
+                        <span style={{ opacity: 0.75 }}>({activity.verb.replace(/_/g, ' ')})</span>
                       </div>
                     ) : null}
 
                     <div style={{ marginBottom: 16 }}>
-                      <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted, #94a3b8)', marginBottom: 6 }}>
+                      <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#837560', marginBottom: 6 }}>
                         Report reasons:
                       </p>
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', color: 'var(--text, #cbd5e1)' }}>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', color: '#514532' }}>
                         {reportList.map((r, idx) => (
                           <li key={idx} style={{ marginBottom: 4 }}>
                             <strong>{r.reason}</strong> by {r.reporter_display_name}
                             {r.note ? <em> — "{r.note}"</em> : null}
                             {r.resolution ? (
-                              <span style={{ marginLeft: 6, fontSize: '0.75rem', opacity: 0.7 }}>
+                              <span style={{ marginLeft: 6, fontSize: '0.75rem', opacity: 0.75 }}>
                                 (Resolved: {r.resolution})
                               </span>
                             ) : null}
@@ -241,7 +242,7 @@ export function PlazaModerationPage() {
                       </ul>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 12, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 12, borderTop: '1px solid #efeeea' }}>
                       {!isHidden ? (
                         <button
                           type="button"
@@ -275,9 +276,9 @@ export function PlazaModerationPage() {
           )}
         </div>
       ) : (
-        <div className="stitch-panel" style={{ maxWidth: 640 }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: '0 0 8px 0' }}>Moderate social activity</h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted, #94a3b8)', margin: '0 0 20px 0' }}>
+        <div className="stitch-panel section-panel" style={{ maxWidth: 640 }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#582f0e', margin: '0 0 8px 0' }}>Moderate social activity</h2>
+          <p style={{ fontSize: '0.875rem', color: '#837560', margin: '0 0 20px 0' }}>
             Hiding an activity removes it from the public feed and standings boards for all users.
           </p>
 

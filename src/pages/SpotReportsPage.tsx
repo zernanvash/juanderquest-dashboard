@@ -281,18 +281,21 @@ export function SpotReportsPage() {
                           aria-label={`Moderation note for destination ${spot.id}`}
                           value={modNotes[spot.id] ?? ''}
                           maxLength={500}
+                          placeholder="Write a short note (5+ chars)"
                           onChange={(event) => setModNotes((current) => ({ ...current, [spot.id]: event.target.value }))}
                         />
                       </label>
-                      <button type="button" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'publish')}>
-                        Publish
-                      </button>
-                      <button type="button" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'keep_hidden')}>
-                        Keep hidden
-                      </button>
-                      <button type="button" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'remove')}>
-                        Remove
-                      </button>
+                      <div className="report-action-buttons">
+                        <button type="button" className="button button-approve" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'publish')}>
+                          Publish
+                        </button>
+                        <button type="button" className="button button-secondary" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'keep_hidden')}>
+                          Keep hidden
+                        </button>
+                        <button type="button" className="button button-reject" disabled={saving === spot.id} onClick={() => void moderateSpot(spot, 'remove')}>
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -338,15 +341,18 @@ export function SpotReportsPage() {
                         aria-label={`Resolution note for report ${report.id}`}
                         value={notes[report.id] ?? ''}
                         maxLength={500}
+                        placeholder="Write a short note (5+ chars)"
                         onChange={(event) => setNotes((current) => ({ ...current, [report.id]: event.target.value }))}
                       />
                     </label>
-                    <button type="button" disabled={saving === report.id} onClick={() => void resolve(report, 'reviewed')}>
-                      Mark reviewed
-                    </button>
-                    <button type="button" disabled={saving === report.id} onClick={() => void resolve(report, 'dismissed')}>
-                      Dismiss
-                    </button>
+                    <div className="report-action-buttons">
+                      <button type="button" className="button button-approve" disabled={saving === report.id} onClick={() => void resolve(report, 'reviewed')}>
+                        Mark reviewed
+                      </button>
+                      <button type="button" className="button button-secondary" disabled={saving === report.id} onClick={() => void resolve(report, 'dismissed')}>
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                 ) : report.resolution_note ? (
                   <p className="report-resolution">
