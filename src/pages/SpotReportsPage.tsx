@@ -7,6 +7,7 @@ import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 import type { FlaggedSpot, Spot, SpotReport } from '../types';
@@ -46,7 +47,7 @@ export function SpotReportsPage() {
   const [reports, setReports] = useState<SpotReport[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [flaggedSpots, setFlaggedSpots] = useState<FlaggedSpot[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

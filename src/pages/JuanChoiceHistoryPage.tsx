@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client';
 import { EmptyState, PageHeader, PageLoading } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
@@ -75,8 +76,13 @@ export function JuanChoiceHistoryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [activeTab, setActiveTab] = useState<HistoryTab>('summary');
-  const [statusFilter, setStatusFilter] = useState<'past' | 'finalized' | 'closed' | 'cancelled'>('past');
-  const [search, setSearch] = useState('');
+  const [rawStatusFilter, setRawStatusFilter] = useUrlFilterState('status', 'past');
+  const statusFilter: 'past' | 'finalized' | 'closed' | 'cancelled' =
+    rawStatusFilter === 'finalized' || rawStatusFilter === 'closed' || rawStatusFilter === 'cancelled'
+      ? rawStatusFilter
+      : 'past';
+  const setStatusFilter = (s: 'past' | 'finalized' | 'closed' | 'cancelled') => setRawStatusFilter(s);
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState('');

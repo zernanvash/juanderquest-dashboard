@@ -5,6 +5,7 @@ import { AdminPagination, AdminSearchBar, useClientPagination } from '../compone
 import { PageHeader } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
 import { Link } from '../router';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
@@ -47,8 +48,10 @@ interface MerchantFundingDetail {
 export function MerchantFundingPage() {
   const [items, setItems] = useState<MerchantFundingRow[]>([]);
   const [selected, setSelected] = useState<MerchantFundingDetail | null>(null);
-  const [search, setSearch] = useState('');
-  const [includeTest, setIncludeTest] = useState(false);
+  const [search, setSearch] = useUrlFilterState('q', '');
+  const [rawIncludeTest, setRawIncludeTest] = useUrlFilterState('include_test', 'false');
+  const includeTest = rawIncludeTest === 'true';
+  const setIncludeTest = (v: boolean) => setRawIncludeTest(v ? 'true' : 'false');
   const [suspendReason, setSuspendReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');

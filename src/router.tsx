@@ -65,6 +65,10 @@ export function RouterProvider({ children }: { children: ReactNode }) {
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>;
 }
 
+export function useOptionalRouter(): RouterValue | null {
+  return useContext(RouterContext);
+}
+
 export function useRouter(): RouterValue {
   const context = useContext(RouterContext);
   if (!context) throw new Error('useRouter must be used inside RouterProvider');

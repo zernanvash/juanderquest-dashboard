@@ -5,6 +5,7 @@ import { useSelectedAreaId } from '../auth';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
 import { describeError } from '../utils/errors';
+import { useUrlFilterState } from '../utils/urlFilters';
 import type { AdminMerchantDetail, AdminMerchantListItem } from '../types';
 
 export function MerchantsPage() {
@@ -12,7 +13,7 @@ export function MerchantsPage() {
   const [merchants, setMerchants] = useState<AdminMerchantListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [detail, setDetail] = useState<AdminMerchantDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');

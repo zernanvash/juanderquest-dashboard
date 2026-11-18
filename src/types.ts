@@ -14,6 +14,9 @@ export interface Submission {
   rejection_reason?: string;
   created_at: string;
   is_test?: boolean;
+  quest_location?: string;
+  spot_id?: string | null;
+  spot_name?: string;
 }
 
 export interface QuestStepEvidence {
@@ -68,6 +71,7 @@ export interface Quest {
   created_at?: string;
   base_reward_php?: number;
   is_active?: boolean;
+  is_featured?: boolean;
 }
 
 export interface SpotReport {
@@ -125,6 +129,7 @@ export interface Spot {
   crowd_capacity_band?: 'low' | 'medium' | 'high';
   crowd_status?: string;
   recommendation_suppressed?: boolean;
+  recommendation_suppressed_until?: string | null;
 }
 
 export interface SpotModerationEvent {

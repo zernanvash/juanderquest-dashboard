@@ -6,6 +6,7 @@ import { withArea } from '../utils/areaQuery';
 import { useRouter } from '../router';
 import { PageHeader } from '../components/PageState';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { describeError } from '../utils/errors';
 import type { Spot } from '../types';
 
@@ -21,8 +22,9 @@ export function DestinationsPage() {
   const statusFilter = parseStatus(query.get('status'));
 
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [search, setSearch] = useState('');
-  const [municipalityFilter, setMunicipalityFilter] = useState('all');
+  const [search, setSearch] = useUrlFilterState('q', '');
+  const [municipalityFilter, setMunicipalityFilter] = useUrlFilterState('municipality', 'all');
+  const [suppressHours, setSuppressHours] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
   const [reviewError, setReviewError] = useState('');
@@ -52,14 +54,25 @@ export function DestinationsPage() {
     spot: Spot,
     status: 'published' | 'needs_review' | 'unpublished',
     band: Spot['crowd_capacity_band'] = spot.crowd_capacity_band || 'medium',
-    suppressed = spot.recommendation_suppressed || false
+    suppressed = spot.recommendation_suppressed || false,
+    hours?: number,
   ) => {
     try {
       setReviewingId(spot.id);
       setReviewError('');
+      const body: Record<string, unknown> = {
+        status,
+        crowd_capacity_band: band,
+        recommendation_suppressed: suppressed,
+      };
+      if (suppressed && typeof hours === 'number' && hours > 0) {
+        body.suppress_hours = hours;
+      } else if (!suppressed) {
+        body.recommendation_suppressed_until = null;
+      }
       const updated = await apiFetch<Spot>(`/admin/spots/${spot.id}`, {
         method: 'PATCH',
-        body: { status, crowd_capacity_band: band, recommendation_suppressed: suppressed },
+        body,
       });
       setSpots((current) => current.map((item) => (item.id === spot.id ? updated : item)));
     } catch (cause) {
@@ -182,7 +195,12 @@ export function DestinationsPage() {
                 Status: {spot.status.replace(/_/g, ' ')} · Crowd: {(spot.crowd_status || 'unknown').replace(/_/g, ' ')}
               </p>
               {spot.recommendation_suppressed ? (
-                <span className="suppression-badge">Suppressed from alternative recommendations</span>
+                <span className="suppression-badge">
+                  Suppressed from alternative recommendations
+                  {spot.recommendation_suppressed_until
+                    ? ` (until ${new Date(spot.recommendation_suppressed_until).toLocaleString()})`
+                    : ''}
+                </span>
               ) : null}
               <label className="destination-capacity">
                 Capacity band
@@ -198,6 +216,26 @@ export function DestinationsPage() {
                   <option value="high">High</option>
                 </select>
               </label>
+              {!spot.recommendation_suppressed ? (
+                <label className="destination-capacity">
+                  Suppression duration
+                  <select
+                    aria-label={`Suppression duration for ${spot.name}`}
+                    value={String(suppressHours[spot.id] ?? 4)}
+                    disabled={reviewingId === spot.id}
+                    onChange={(event) =>
+                      setSuppressHours((prev) => ({ ...prev, [spot.id]: Number(event.target.value) }))
+                    }
+                  >
+                    <option value="0">Indefinite</option>
+                    <option value="2">2 hours (auto-unsuppress)</option>
+                    <option value="4">4 hours (auto-unsuppress)</option>
+                    <option value="8">8 hours (auto-unsuppress)</option>
+                    <option value="24">24 hours (auto-unsuppress)</option>
+                    <option value="72">72 hours (auto-unsuppress)</option>
+                  </select>
+                </label>
+              ) : null}
               <div className="destination-actions">
                 {spot.status !== 'published' ? (
                   <button
@@ -226,9 +264,18 @@ export function DestinationsPage() {
                   className="button-muted"
                   disabled={reviewingId === spot.id}
                   onClick={() => {
-                    const action = spot.recommendation_suppressed ? 'Allow this destination in alternative recommendations again' : `Suppress "${spot.name}" from alternative recommendations`;
+                    const hrs = suppressHours[spot.id] ?? 4;
+                    const action = spot.recommendation_suppressed
+                      ? 'Allow this destination in alternative recommendations again'
+                      : `Suppress "${spot.name}" from alternative recommendations${hrs > 0 ? ` for ${hrs} hours` : ''}`;
                     if (!window.confirm(`${action}? This emergency control does not unpublish the destination.`)) return;
-                    void reviewSpot(spot, spot.status as 'published' | 'needs_review' | 'unpublished', spot.crowd_capacity_band, !spot.recommendation_suppressed);
+                    void reviewSpot(
+                      spot,
+                      spot.status as 'published' | 'needs_review' | 'unpublished',
+                      spot.crowd_capacity_band,
+                      !spot.recommendation_suppressed,
+                      !spot.recommendation_suppressed && hrs > 0 ? hrs : undefined,
+                    );
                   }}
                 >
                   {spot.recommendation_suppressed ? 'Allow alternatives' : 'Suppress alternative'}

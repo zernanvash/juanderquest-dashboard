@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageState';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { QuizEditor } from '../components/QuizEditor';
 import { describeError } from '../utils/errors';
+import { useUrlFilterState } from '../utils/urlFilters';
 import type { QuizDraftDefaults } from '../utils/quizDraft';
 import type { AdminQuizListItem, CulturalQuizStatus, SettingsSnapshot, Spot } from '../types';
 
@@ -28,8 +29,13 @@ export function QuizzesPage() {
   const selectedAreaId = useSelectedAreaId();
   const [quizzes, setQuizzes] = useState<AdminQuizListItem[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
-  const [statusFilter, setStatusFilter] = useState<'all' | CulturalQuizStatus>('all');
-  const [search, setSearch] = useState('');
+  const [rawStatusFilter, setRawStatusFilter] = useUrlFilterState('status', 'all');
+  const statusFilter: 'all' | CulturalQuizStatus =
+    rawStatusFilter === 'draft' || rawStatusFilter === 'published' || rawStatusFilter === 'paused' || rawStatusFilter === 'archived'
+      ? rawStatusFilter
+      : 'all';
+  const setStatusFilter = (s: 'all' | CulturalQuizStatus) => setRawStatusFilter(s);
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');

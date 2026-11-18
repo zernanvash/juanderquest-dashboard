@@ -13,6 +13,7 @@ import type { Submission } from '../types';
 
 type StatusFilter = 'pending' | 'approved' | 'rejected' | 'all';
 type QaFilter = 'all' | 'live' | 'qa';
+type AgeFilter = 'all' | '24h' | '72h' | '7d';
 
 const PAGE_SIZE = 12;
 
@@ -28,20 +29,30 @@ const parseStatus = (value: string | null): StatusFilter =>
 
 const parseQa = (value: string | null): QaFilter => (value === 'live' || value === 'qa' ? value : 'all');
 
+const parseAge = (value: string | null): AgeFilter =>
+  value === '24h' || value === '72h' || value === '7d' ? value : 'all';
+
 export function SubmissionsPage() {
   const { query, navigate } = useRouter();
   const status = parseStatus(query.get('status'));
   const qaFilter = parseQa(query.get('qa'));
+  const destFilter = query.get('dest') ?? '';
+  const questFilter = query.get('quest') ?? '';
+  const ageFilter = parseAge(query.get('age'));
+  const search = query.get('q') ?? '';
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState('');
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState('');
+  const [bulkNotice, setBulkNotice] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkReason, setBulkReason] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [search, setSearch] = useState('');
   const rejectInputRef = useRef<HTMLTextAreaElement>(null);
   const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -124,35 +135,125 @@ export function SubmissionsPage() {
     }
   };
 
-  const buildQuery = (nextStatus: StatusFilter, nextQa: QaFilter, nextPage = 1): string => {
+  const buildQuery = (
+    nextStatus: StatusFilter,
+    nextQa: QaFilter,
+    nextPage = 1,
+    overrides?: { dest?: string; quest?: string; age?: AgeFilter; q?: string },
+  ): string => {
     const params = new URLSearchParams();
     if (nextStatus !== 'pending') params.set('status', nextStatus);
     if (nextQa !== 'all') params.set('qa', nextQa);
+    const nextDest = overrides?.dest !== undefined ? overrides.dest : destFilter;
+    const nextQuest = overrides?.quest !== undefined ? overrides.quest : questFilter;
+    const nextAge = overrides?.age !== undefined ? overrides.age : ageFilter;
+    const nextSearch = overrides?.q !== undefined ? overrides.q : search;
+    if (nextDest) params.set('dest', nextDest);
+    if (nextQuest) params.set('quest', nextQuest);
+    if (nextAge !== 'all') params.set('age', nextAge);
+    if (nextSearch) params.set('q', nextSearch);
     if (nextPage > 1) params.set('page', String(nextPage));
     const suffix = params.toString();
     return `/submissions${suffix ? `?${suffix}` : ''}`;
   };
 
   const setFilters = (nextStatus: StatusFilter, nextQa: QaFilter) => {
+    setSelectedIds([]);
     navigate(buildQuery(nextStatus, nextQa));
   };
 
+  const setExtraFilter = (patch: { dest?: string; quest?: string; age?: AgeFilter; q?: string }) => {
+    navigate(buildQuery(status, qaFilter, 1, patch), { replace: true });
+  };
+
+  const destinationOptions = useMemo(() => {
+    const unique = new Set<string>();
+    for (const s of submissions) {
+      const label = s.spot_name || s.quest_location;
+      if (label) unique.add(label);
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [submissions]);
+
+  const questOptions = useMemo(() => {
+    const unique = new Set<string>();
+    for (const s of submissions) {
+      if (s.quest_title) unique.add(s.quest_title);
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [submissions]);
+
   const displayedSubmissions = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const now = Date.now();
+    const ageLimitMs =
+      ageFilter === '24h' ? 86_400_000 : ageFilter === '72h' ? 3 * 86_400_000 : ageFilter === '7d' ? 7 * 86_400_000 : 0;
     return submissions.filter((sub) => {
       if (qaFilter === 'live' && sub.is_test) return false;
       if (qaFilter === 'qa' && !sub.is_test) return false;
+      if (destFilter && (sub.spot_name || sub.quest_location || '') !== destFilter) return false;
+      if (questFilter && sub.quest_title !== questFilter) return false;
+      if (ageLimitMs > 0) {
+        const created = Date.parse(sub.created_at);
+        if (Number.isFinite(created) && now - created > ageLimitMs) return false;
+      }
       if (!q) return true;
-      return `${sub.quest_title ?? ''} ${sub.user_name ?? ''} ${sub.scanned_marker_code ?? ''} ${sub.id}`
+      return `${sub.quest_title ?? ''} ${sub.user_name ?? ''} ${sub.scanned_marker_code ?? ''} ${sub.id} ${sub.spot_name ?? ''}`
         .toLowerCase()
         .includes(q);
     });
-  }, [submissions, qaFilter, search]);
+  }, [submissions, qaFilter, destFilter, questFilter, ageFilter, search]);
 
   const totalPages = Math.max(1, Math.ceil(displayedSubmissions.length / PAGE_SIZE));
   const requestedPage = Number(query.get('page')) || 1;
   const page = Math.min(Math.max(1, requestedPage), totalPages);
   const pageItems = displayedSubmissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pendingPageIds = pageItems.filter((s) => s.status === 'pending').map((s) => s.id);
+  const allPendingSelected = pendingPageIds.length > 0 && pendingPageIds.every((id) => selectedIds.includes(id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllOnPage = () => {
+    setSelectedIds((prev) =>
+      allPendingSelected
+        ? prev.filter((id) => !pendingPageIds.includes(id))
+        : Array.from(new Set([...prev, ...pendingPageIds])),
+    );
+  };
+
+  const runBulkReview = async (action: 'approve' | 'reject') => {
+    if (!selectedIds.length) return;
+    const reason = bulkReason.trim();
+    if (action === 'reject' && reason.length < 3) {
+      setReviewError('Write a bulk rejection reason of at least 3 characters.');
+      return;
+    }
+    setBulkBusy(true);
+    setReviewError('');
+    setBulkNotice('');
+    try {
+      const res = await apiFetch<{ updated_count: number; skipped: Array<{ id: string }> }>('/admin/submissions/bulk-review', {
+        method: 'POST',
+        body: {
+          ids: selectedIds,
+          action,
+          ...(action === 'reject' ? { rejection_reason: reason } : {}),
+        },
+      });
+      setBulkNotice(
+        `Bulk ${action}d ${res.updated_count} submission(s).${res.skipped.length ? ` Skipped ${res.skipped.length}.` : ''}`,
+      );
+      setSelectedIds([]);
+      if (action === 'reject') setBulkReason('');
+      await fetchSubmissions();
+    } catch (cause) {
+      setReviewError(describeError(cause, `Bulk ${action} failed.`));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -192,6 +293,7 @@ export function SubmissionsPage() {
         </div>
       ) : null}
       {reviewError ? <div className="load-error" role="alert">{reviewError}</div> : null}
+      {bulkNotice ? <div className="status-banner status-banner-success" role="status">{bulkNotice}</div> : null}
 
       {(status === 'pending' || status === 'all') && submissions.length > 0 ? (
         <QueueVisualAnalytics submissions={submissions} />
@@ -214,14 +316,85 @@ export function SubmissionsPage() {
 
       <AdminSearchBar
         value={search}
-        onChange={setSearch}
+        onChange={(value) => setExtraFilter({ q: value })}
         placeholder="Search by quest title, traveler, marker code, or submission ID…"
         ariaLabel="Search proof submissions"
         totalCount={submissions.length}
         filteredCount={displayedSubmissions.length}
         shownCount={pageItems.length}
         itemLabel="submissions"
-      />
+      >
+        <select
+          aria-label="Filter by destination"
+          value={destFilter}
+          onChange={(e) => setExtraFilter({ dest: e.target.value })}
+          className="admin-filter-select"
+        >
+          <option value="">All destinations</option>
+          {destinationOptions.map((d) => (
+            <option key={d} value={d}>Dest: {d}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by quest"
+          value={questFilter}
+          onChange={(e) => setExtraFilter({ quest: e.target.value })}
+          className="admin-filter-select"
+        >
+          <option value="">All quests</option>
+          {questOptions.map((qName) => (
+            <option key={qName} value={qName}>Quest: {qName}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by age"
+          value={ageFilter}
+          onChange={(e) => setExtraFilter({ age: parseAge(e.target.value) })}
+          className="admin-filter-select"
+        >
+          <option value="all">Any age</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="72h">Last 72 hours</option>
+          <option value="7d">Last 7 days</option>
+        </select>
+      </AdminSearchBar>
+
+      {pendingPageIds.length > 0 ? (
+        <section className="stitch-panel panel-section no-print" aria-label="Bulk submission actions" style={{ marginBottom: 14 }}>
+          <div className="action-cluster">
+            <label className="checkbox-inline">
+              <input
+                type="checkbox"
+                checked={allPendingSelected}
+                onChange={toggleSelectAllOnPage}
+              />
+              Select all pending on page ({pendingPageIds.length})
+            </label>
+            <input
+              aria-label="Bulk rejection reason"
+              value={bulkReason}
+              onChange={(e) => setBulkReason(e.target.value)}
+              placeholder="Reason for bulk reject (min 3 chars)"
+            />
+            <button
+              type="button"
+              className="button-approve"
+              disabled={!selectedIds.length || bulkBusy}
+              onClick={() => void runBulkReview('approve')}
+            >
+              Bulk approve ({selectedIds.length})
+            </button>
+            <button
+              type="button"
+              className="button-reject"
+              disabled={!selectedIds.length || bulkBusy || bulkReason.trim().length < 3}
+              onClick={() => void runBulkReview('reject')}
+            >
+              Bulk reject ({selectedIds.length})
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <div className="filter-row">
         <span className="filter-label">Data scope</span>
@@ -265,6 +438,16 @@ export function SubmissionsPage() {
             <div key={sub.id} className="stitch-card submission-card">
               <div>
                 <div className="submission-card-top">
+                  {sub.status === 'pending' ? (
+                    <label className="checkbox-inline no-print">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select submission ${sub.id}`}
+                        checked={selectedIds.includes(sub.id)}
+                        onChange={() => toggleSelect(sub.id)}
+                      />
+                    </label>
+                  ) : null}
                   <span className="submission-id">ID: {sub.id.substring(0, 8)}</span>
                   {sub.is_test ? (
                     <span className="qa-badge">

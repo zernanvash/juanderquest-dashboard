@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useSelectedAreaId } from '../auth';
 import { PageHeader } from '../components/PageState';
 import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
 import { withArea } from '../utils/areaQuery';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { describeError } from '../utils/errors';
 import type { Quest } from '../types';
 
-type AdminQuest = Quest & { spot_name?: string | null; municipality?: string | null };
+type AdminQuest = Quest & { spot_id?: string | null; spot_name?: string | null; municipality?: string | null };
 type StatusFilter = 'all' | 'published' | 'paused' | 'draft';
 const FILTERS: StatusFilter[] = ['all', 'published', 'paused', 'draft'];
 
 export function QuestsPage() {
   const selectedAreaId = useSelectedAreaId();
   const [quests, setQuests] = useState<AdminQuest[]>([]);
-  const [filter, setFilter] = useState<StatusFilter>('all');
-  const [search, setSearch] = useState('');
+  const [rawStatus, setRawStatus] = useUrlFilterState('status', 'all');
+  const filter: StatusFilter =
+    rawStatus === 'published' || rawStatus === 'paused' || rawStatus === 'draft' ? rawStatus : 'all';
+  const [search, setSearch] = useUrlFilterState('q', '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+  const [bulkDestId, setBulkDestId] = useState('');
+  const [bulkReason, setBulkReason] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const fetchQuests = useCallback(
     async (signal?: AbortSignal) => {
@@ -57,6 +64,59 @@ export function QuestsPage() {
     }
   };
 
+  const toggleFeature = async (quest: AdminQuest) => {
+    setSaving(quest.id);
+    setError('');
+    setNotice('');
+    try {
+      const next = !Boolean(quest.is_featured);
+      const updated = await apiFetch<Quest>(`/admin/quests/${quest.id}/feature`, {
+        method: 'POST',
+        body: { featured: next },
+      });
+      setQuests((current) => current.map((item) => (item.id === quest.id ? { ...item, ...updated } : item)));
+      setNotice(next ? `"${quest.title}" pinned to top of Explore.` : `"${quest.title}" unfeatured.`);
+    } catch (cause) {
+      setError(describeError(cause, 'Unable to update quest feature state.'));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const destinationOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const q of quests) {
+      if (q.spot_id && q.spot_name && !map.has(q.spot_id)) {
+        map.set(q.spot_id, `${q.spot_name}${q.municipality ? ` (${q.municipality})` : ''}`);
+      }
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [quests]);
+
+  const bulkPauseByDestination = async () => {
+    if (!bulkDestId) return;
+    const label = destinationOptions.find(([id]) => id === bulkDestId)?.[1] ?? bulkDestId;
+    if (!window.confirm(`Pause all published non-funded quests at "${label}"?`)) return;
+    setBulkBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await apiFetch<{ paused_count: number; skipped_funded: string[] }>('/admin/quests/bulk-pause', {
+        method: 'POST',
+        body: { destination_id: bulkDestId, ...(bulkReason.trim() ? { reason: bulkReason.trim() } : {}) },
+      });
+      setNotice(
+        `Paused ${res.paused_count} quest(s) at ${label}.${res.skipped_funded.length ? ` Skipped ${res.skipped_funded.length} funded quest(s).` : ''}`,
+      );
+      setBulkReason('');
+      await fetchQuests();
+    } catch (cause) {
+      setError(describeError(cause, 'Unable to bulk-pause destination quests.'));
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return quests.filter((quest) => {
@@ -86,6 +146,35 @@ export function QuestsPage() {
           {error} <button type="button" onClick={() => void fetchQuests()}>Retry</button>
         </div>
       ) : null}
+      {notice ? <div className="status-banner status-banner-success" role="status">{notice}</div> : null}
+
+      {destinationOptions.length > 0 ? (
+        <section className="stitch-panel panel-section" aria-label="Bulk pause quests by destination" style={{ marginBottom: 14 }}>
+          <div className="action-cluster">
+            <label className="settings-field">
+              Destination
+              <select value={bulkDestId} onChange={(e) => setBulkDestId(e.target.value)} aria-label="Bulk pause destination">
+                <option value="">Select destination to pause quests…</option>
+                {destinationOptions.map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field">
+              Reason (optional)
+              <input value={bulkReason} onChange={(e) => setBulkReason(e.target.value)} placeholder="Overcrowding or maintenance" />
+            </label>
+            <button
+              type="button"
+              className="button button-danger"
+              disabled={!bulkDestId || bulkBusy}
+              onClick={() => void bulkPauseByDestination()}
+            >
+              {bulkBusy ? 'Pausing…' : 'Bulk pause by destination'}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <div className="filter-row">
         <span className="filter-label">Status</span>
@@ -95,7 +184,7 @@ export function QuestsPage() {
             type="button"
             className={`filter-chip${filter === value ? ' is-active' : ''}`}
             aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
+            onClick={() => setRawStatus(value)}
           >
             {value} ({value === 'all' ? quests.length : quests.filter((quest) => quest.status === value).length})
           </button>
@@ -127,6 +216,9 @@ export function QuestsPage() {
                 <span className={`status-pill status-${quest.status === 'published' ? 'approved' : 'pending'}`}>
                   {quest.status || (quest.is_active ? 'published' : 'inactive')}
                 </span>
+                {quest.is_featured ? (
+                  <span className="pill pill-warn"><Star size={11} aria-hidden="true" /> Featured</span>
+                ) : null}
               </div>
               <h3 className="destination-title">{quest.title}</h3>
               <p className="destination-location">
@@ -142,25 +234,35 @@ export function QuestsPage() {
                     : 'Single checkpoint'}
                 </span>
               </div>
-              {quest.status === 'published' ? (
+              <div className="action-cluster">
+                {quest.status === 'published' ? (
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    disabled={saving === quest.id}
+                    onClick={() => void setStatus(quest, 'paused')}
+                  >
+                    Pause
+                  </button>
+                ) : quest.status === 'paused' || quest.status === 'draft' ? (
+                  <button
+                    type="button"
+                    className="button button-approve"
+                    disabled={saving === quest.id}
+                    onClick={() => void setStatus(quest, 'published')}
+                  >
+                    Publish
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="button button-secondary"
                   disabled={saving === quest.id}
-                  onClick={() => void setStatus(quest, 'paused')}
+                  onClick={() => void toggleFeature(quest)}
                 >
-                  Pause
+                  {quest.is_featured ? 'Unfeature' : 'Feature'}
                 </button>
-              ) : quest.status === 'paused' || quest.status === 'draft' ? (
-                <button
-                  type="button"
-                  className="button button-approve"
-                  disabled={saving === quest.id}
-                  onClick={() => void setStatus(quest, 'published')}
-                >
-                  Publish
-                </button>
-              ) : null}
+              </div>
             </div>
           ))}
         </div>

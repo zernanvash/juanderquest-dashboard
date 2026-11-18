@@ -5,6 +5,7 @@ import { AdminPagination, AdminSearchBar, useClientPagination } from '../compone
 import { PageHeader } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
 import { Link } from '../router';
+import { useUrlFilterState } from '../utils/urlFilters';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
@@ -17,10 +18,12 @@ export function FundingPage() {
   const [treasury, setTreasury] = useState<any>(null);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [status, setStatus] = useState('');
-  const [includeTest, setIncludeTest] = useState(false);
-  const [planSearch, setPlanSearch] = useState('');
-  const [creditSearch, setCreditSearch] = useState('');
+  const [status, setStatus] = useUrlFilterState('status', '');
+  const [rawIncludeTest, setRawIncludeTest] = useUrlFilterState('include_test', 'false');
+  const includeTest = rawIncludeTest === 'true';
+  const setIncludeTest = (v: boolean) => setRawIncludeTest(v ? 'true' : 'false');
+  const [planSearch, setPlanSearch] = useUrlFilterState('q', '');
+  const [creditSearch, setCreditSearch] = useUrlFilterState('credit_q', '');
   const [fundingEnabled, setFundingEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
