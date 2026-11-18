@@ -31,6 +31,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SystemStatusPage } from './pages/SystemStatusPage';
 import { ChainPage } from './pages/ChainPage';
 import { FundingPage } from './pages/FundingPage';
+import { GiveMjdqPage } from './pages/GiveMjdqPage';
 import { ShopCosmeticsPage } from './pages/ShopCosmeticsPage';
 import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
@@ -122,6 +123,8 @@ function RouteOutlet() {
       return <TrailStudioPage />;
     case '/economy/funding':
       return <FundingPage />;
+    case '/economy/give-mjdq':
+      return <GiveMjdqPage />;
     case '/insights/analytics':
       return <AnalyticsPage />;
     case '/insights/governance':
