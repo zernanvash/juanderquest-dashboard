@@ -76,13 +76,17 @@ export function EconomyLabOverview({ token, onUnauthorized }: { token?: string |
     finally { setActionBusy(false); }
   }
 
-  return <section className="stitch-panel" style={{ padding: 24 }}>
-    <h2>Local simulated economy — operator observation</h2>
-    <p>Fictional Explorer Coins only. Read-only telemetry; proof approval remains in the independent moderation queue.</p>
-    <button type="button" onClick={() => void refresh()} disabled={loading}>Refresh durable observation</button>
+  return <section className="stitch-panel page-stack" style={{ padding: 24 }}>
+    <div>
+      <h2>Local simulated economy — operator observation</h2>
+      <p>Fictional Explorer Coins only. Read-only telemetry; proof approval remains in the independent moderation queue.</p>
+    </div>
+    <div>
+      <button type="button" className="button button-secondary" onClick={() => void refresh()} disabled={loading}>Refresh durable observation</button>
+    </div>
     {loading && <p role="status">Reading isolated PostgreSQL state…</p>}
-    {error && <p role="alert">{error}</p>}
-    {notice && <p role="status">{notice}</p>}
+    {error && <p role="alert" className="load-error">{error}</p>}
+    {notice && <p role="status" className="status-banner status-banner-success">{notice}</p>}
     {!loading && summary && <>
       <h3>Pool conservation: {conserved ? 'PASS' : 'FAIL'}</h3>
       <p>Allocated {summary.allocated_minor} = available {summary.available_minor} + reserved {summary.reserved_minor} + paid {summary.paid_minor} + returned {summary.returned_minor}.</p>
@@ -93,24 +97,25 @@ export function EconomyLabOverview({ token, onUnauthorized }: { token?: string |
       <h3>Read-only reconciliation</h3>
       <p>Explorer Coin account drift: {reconciliation?.pilotAccountDrift.length ?? 'unavailable'}; unbalanced legacy groups: {reconciliation?.unbalancedLegacyGroups.length ?? 'unavailable'}.</p>
       <p>This observation does not authorize public utility, mJDQ conversion, or any chain transaction.</p>
-      <section style={{ borderTop:'1px solid #d5c4ac', marginTop:20, paddingTop:16 }}>
+      <section className="page-stack" style={{ borderTop:'1px solid #d5c4ac', marginTop:20, paddingTop:16 }}>
         <h3>Separate simulation decisions</h3>
         <p>These controls call existing guarded admin routes. A different reviewer must decide an appeal; this panel cannot bypass that rule.</p>
-        <label htmlFor="lab-decision-reason">Decision reason</label>
-        <input id="lab-decision-reason" value={decisionReason} onChange={event => setDecisionReason(event.target.value)}
-          style={{ display:'block', width:'100%', maxWidth:550, minHeight:44, marginBottom:12 }} />
+        <label htmlFor="lab-decision-reason" className="field-label">Decision reason
+          <input id="lab-decision-reason" className="settings-input" value={decisionReason} onChange={event => setDecisionReason(event.target.value)}
+            style={{ display:'block', width:'100%', maxWidth:550, minHeight:44, marginTop:6, padding:'8px 12px', border:'1px solid #d5c4ac', borderRadius:8, background:'#fff' }} />
+        </label>
         <h4>Pending appeals</h4>
-        {appeals.length ? <ul>{appeals.map(item => <li key={item.id} style={{ marginBottom:12 }}>
-          Appeal {item.id} · {item.amount_minor} simulated coins · original reviewer {item.original_reviewer_id}.
-          <div style={{ display:'flex', gap:8 }}>
-            <button disabled={actionBusy} onClick={() => void decide(`/api/v1/admin/economy/appeals/${encodeURIComponent(item.id)}/approve`, { reason:decisionReason })}>Approve independent appeal</button>
-            <button disabled={actionBusy} onClick={() => void decide(`/api/v1/admin/economy/appeals/${encodeURIComponent(item.id)}/reject`, { reason:decisionReason })}>Reject independent appeal</button>
+        {appeals.length ? <ul className="stamps-list">{appeals.map(item => <li key={item.id} className="stamps-list-item">
+          <span>Appeal {item.id} · {item.amount_minor} simulated coins · original reviewer {item.original_reviewer_id}.</span>
+          <div className="report-action-buttons">
+            <button type="button" className="button button-approve" disabled={actionBusy} onClick={() => void decide(`/api/v1/admin/economy/appeals/${encodeURIComponent(item.id)}/approve`, { reason:decisionReason })}>Approve independent appeal</button>
+            <button type="button" className="button button-reject" disabled={actionBusy} onClick={() => void decide(`/api/v1/admin/economy/appeals/${encodeURIComponent(item.id)}/reject`, { reason:decisionReason })}>Reject independent appeal</button>
           </div>
         </li>)}</ul> : <p>No pending appeals.</p>}
         <h4>Recent optional cosmetic purchases</h4>
-        {purchases.length ? <ul>{purchases.map(item => <li key={item.transaction_id} style={{ marginBottom:12 }}>
-          {item.cosmetic_id} · {item.amount_minor} simulated coins · receipt {item.transaction_id}
-          {item.refunded_at ? ' · corrected/refunded' : <button disabled={actionBusy} onClick={() => {
+        {purchases.length ? <ul className="stamps-list">{purchases.map(item => <li key={item.transaction_id} className="stamps-list-item">
+          <span>{item.cosmetic_id} · {item.amount_minor} simulated coins · receipt {item.transaction_id}</span>
+          {item.refunded_at ? <span>corrected/refunded</span> : <button type="button" className="button button-secondary" disabled={actionBusy} onClick={() => {
             const keyName = `jdq-economy-lab-refund:${item.transaction_id}`;
             let key = localStorage.getItem(keyName);
             if (!key) { key = crypto.randomUUID(); localStorage.setItem(keyName, key); }

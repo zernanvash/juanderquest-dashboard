@@ -70,7 +70,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   gap: 20px;
 }
 .load-error { padding: 12px 14px; margin-bottom: 14px; border-radius: 10px; background: rgba(188,71,73,.12); color: #a33234; font-size: 13px; }
-.load-error button { margin-left: 8px; padding: 6px 10px; border-radius: 7px; color: #a33234; font-weight: 700; }
+.load-error button { margin-left: 8px; padding: 6px 10px; border-radius: 7px; background: #ffffff; border: 1px solid rgba(188, 71, 73, 0.35); color: #a33234; font-weight: 700; }
 .loading-panel { padding: 38px; text-align: center; color: #837560; }
 
 input, textarea, select {
