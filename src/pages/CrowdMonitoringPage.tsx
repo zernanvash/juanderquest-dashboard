@@ -48,6 +48,9 @@ export function CrowdMonitoringPage() {
   const [overview, setOverview] = useState<any>(null);
   const [heatmap, setHeatmap] = useState<any[]>([]);
   const [spotDetail, setSpotDetail] = useState<any>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [actionBusy, setActionBusy] = useState('');
+  const [actionNotice, setActionNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -106,20 +109,33 @@ export function CrowdMonitoringPage() {
     setLoading(true);
     setError('');
     try {
+      const sugQuery = selectedSpotId
+        ? `${queryString}&spot_id=${encodeURIComponent(selectedSpotId)}`
+        : queryString;
+      const sugPromise = apiFetch<{ suggestions: any[] }>(`/admin/crowd/suggestions?${sugQuery}`, { signal }).catch(
+        (cause) => {
+          if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+          return { suggestions: [] };
+        },
+      );
       if (selectedSpotId) {
-        const detail = await apiFetch<any>(`/admin/crowd/spots/${encodeURIComponent(selectedSpotId)}?${queryString}`, {
-          signal,
-        });
+        const [detail, sug] = await Promise.all([
+          apiFetch<any>(`/admin/crowd/spots/${encodeURIComponent(selectedSpotId)}?${queryString}`, { signal }),
+          sugPromise,
+        ]);
         setSpotDetail(detail);
         setHeatmap(detail?.heatmap ?? []);
+        setSuggestions(sug?.suggestions ?? []);
       } else {
         setSpotDetail(null);
-        const [ov, hm] = await Promise.all([
+        const [ov, hm, sug] = await Promise.all([
           apiFetch<any>(`/admin/crowd/overview?${queryString}`, { signal }),
           apiFetch<{ cells: any[] }>(`/admin/crowd/heatmap?${queryString}`, { signal }),
+          sugPromise,
         ]);
         setOverview(ov);
         setHeatmap(hm?.cells ?? []);
+        setSuggestions(sug?.suggestions ?? []);
       }
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
@@ -159,6 +175,51 @@ export function CrowdMonitoringPage() {
     else {
       setSortField(field);
       setSortAsc(false);
+    }
+  };
+
+  const applySuggestionAction = async (sug: any, action: any) => {
+    if (action.navigate_to) {
+      navigate(action.navigate_to);
+      return;
+    }
+    if (!action.path || !action.method) return;
+    const key = `${sug.spot_id}:${sug.suggestion_key}:${action.action_key}`;
+    setActionBusy(key);
+    setError('');
+    setActionNotice('');
+    try {
+      await apiFetch(action.path, {
+        method: action.method,
+        body: { ...(action.body ?? {}), idempotency_key: crypto.randomUUID() },
+      });
+      setActionNotice(`Applied "${action.label}" for ${sug.spot_name}.`);
+      await load();
+    } catch (cause) {
+      setError(describeError(cause, 'Unable to apply crowd suggestion.'));
+    } finally {
+      setActionBusy('');
+    }
+  };
+
+  const dismissSuggestion = async (sug: any) => {
+    const key = `${sug.spot_id}:${sug.suggestion_key}:dismiss`;
+    setActionBusy(key);
+    setError('');
+    setActionNotice('');
+    try {
+      await apiFetch('/admin/crowd/suggestions/dismiss', {
+        method: 'POST',
+        body: { spot_id: sug.spot_id, suggestion_key: sug.suggestion_key },
+      });
+      setSuggestions((prev) =>
+        prev.filter((item) => !(item.spot_id === sug.spot_id && item.suggestion_key === sug.suggestion_key)),
+      );
+      setActionNotice(`Dismissed "${sug.rule_label}" for ${sug.spot_name} for 24 hours.`);
+    } catch (cause) {
+      setError(describeError(cause, 'Unable to dismiss suggestion.'));
+    } finally {
+      setActionBusy('');
     }
   };
 
@@ -368,6 +429,65 @@ export function CrowdMonitoringPage() {
               <span>Buckets with 1–2 visitors are masked as &lt;3.</span>
             </div>
           )}
+          {actionNotice ? (
+            <div className="status-banner status-banner-success" role="status">
+              {actionNotice}
+            </div>
+          ) : null}
+
+          <section className="stitch-panel panel-section" aria-label="Crowd control suggestions">
+            <h2 className="section-title">Crowd control suggestions ({suggestions.length})</h2>
+            <p className="section-description">
+              Rule-based recommendations from live traffic, 4-week recurring peaks, and proof anomalies. Nothing changes until an admin clicks Apply.
+            </p>
+            {suggestions.length === 0 ? (
+              <p className="empty-state">No active crowd control suggestions right now.</p>
+            ) : (
+              <div className="page-stack">
+                {suggestions.map((sug) => (
+                  <div key={`${sug.spot_id}:${sug.suggestion_key}`} className="stitch-card" style={{ padding: 14 }}>
+                    <div className="section-heading-row">
+                      <div className="row-badges">
+                        <span className={`pill ${sug.suggestion_key === 'busy_now' ? 'pill-danger' : 'pill-warn'}`}>
+                          {sug.rule_label}
+                        </span>
+                        <strong>{sug.spot_name}</strong>
+                        <small>{sug.municipality}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="button button-secondary no-print"
+                        disabled={!!actionBusy}
+                        onClick={() => void dismissSuggestion(sug)}
+                      >
+                        Dismiss for 24 h
+                      </button>
+                    </div>
+                    <p style={{ marginTop: 6 }}>{sug.evidence}</p>
+                    {Array.isArray(sug.alternatives) && sug.alternatives.length > 0 ? (
+                      <p className="destination-meta" style={{ marginTop: 4 }}>
+                        Quiet nearby alternatives:{' '}
+                        {sug.alternatives.map((a: any) => `${a.name} (${a.municipality}, ${a.crowd_status})`).join(' · ')}
+                      </p>
+                    ) : null}
+                    <div className="action-cluster no-print" style={{ marginTop: 8 }}>
+                      {(sug.actions ?? []).map((act: any) => (
+                        <button
+                          key={act.action_key}
+                          type="button"
+                          className="button-approve"
+                          disabled={!!actionBusy}
+                          onClick={() => void applySuggestionAction(sug, act)}
+                        >
+                          {act.navigate_to ? act.label : `Apply: ${act.label}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="stitch-panel panel-section" aria-label="Crowd KPIs">
             <div className="metric-grid">

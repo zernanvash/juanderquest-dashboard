@@ -84,19 +84,70 @@ describe('CrowdMonitoringPage', () => {
           crowd_status_timeline: [{ bucket: '2026-11-18', pressure_score: 18, threshold: 30, status: 'moderate' }],
         } as never;
       }
+      if (path.startsWith('/admin/crowd/suggestions/dismiss')) {
+        return { spot_id: 'spot-1', suggestion_key: 'busy_now', dismissed_until: '2026-11-19T12:00:00Z' } as never;
+      }
+      if (path.startsWith('/admin/crowd/suggestions')) {
+        return {
+          suggestions: [
+            {
+              spot_id: 'spot-1',
+              spot_name: 'Hundred Islands',
+              municipality: 'Alaminos',
+              suggestion_key: 'busy_now',
+              rule_label: 'Busy now',
+              evidence: 'Pressure peaked at 32 across 2 consecutive Manila hours.',
+              actions: [
+                {
+                  action_key: 'suppress_spot_4h',
+                  label: 'Suppress from Explore (4 h)',
+                  method: 'PATCH',
+                  path: '/admin/spots/spot-1',
+                  body: { status: 'published', crowd_capacity_band: 'high', recommendation_suppressed: true, suppress_hours: 4 },
+                },
+              ],
+            },
+          ],
+        } as never;
+      }
+      if (path === '/admin/spots/spot-1') {
+        return { id: 'spot-1', recommendation_suppressed: true } as never;
+      }
       return {} as never;
     });
   });
 
-  it('renders KPIs, switches date preset, and drills into a destination', async () => {
+  it('renders KPIs, switches date preset, applies and dismisses suggestion, and drills into a destination', async () => {
     render(
       <RouterProvider>
         <CrowdMonitoringPage />
       </RouterProvider>,
     );
 
-    expect(await screen.findByText('Hundred Islands')).toBeInTheDocument();
+    expect(await screen.findByText('Pressure peaked at 32 across 2 consecutive Manila hours.')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply: Suppress from Explore (4 h)' }));
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        '/admin/spots/spot-1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: expect.objectContaining({ recommendation_suppressed: true, suppress_hours: 4 }),
+        }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss for 24 h' }));
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        '/admin/crowd/suggestions/dismiss',
+        expect.objectContaining({
+          method: 'POST',
+          body: { spot_id: 'spot-1', suggestion_key: 'busy_now' },
+        }),
+      ),
+    );
 
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     fireEvent.click(screen.getByRole('button', { name: 'Print' }));
@@ -107,7 +158,8 @@ describe('CrowdMonitoringPage', () => {
       expect(api).toHaveBeenCalledWith(expect.stringMatching(/\/admin\/crowd\/overview\?.*granularity=day/), expect.anything()),
     );
 
-    fireEvent.click(screen.getByText('Hundred Islands'));
+    const spotMatches = screen.getAllByText('Hundred Islands');
+    fireEvent.click(spotMatches[spotMatches.length - 1]);
     expect(await screen.findByText('Crowd status timeline')).toBeInTheDocument();
   });
 });
