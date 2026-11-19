@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowLeft, Download, Flame, RefreshCw, Users } from 'lucide-react';
+import { Activity, ArrowLeft, ChevronRight, Download, Flame, RefreshCw, Users } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { useAuth } from '../auth';
+import { AdminPagination, AdminSearchBar, useClientPagination } from '../components/AdminSearchBar';
+import { CrowdPrintDialog, type CrowdAreaOptions, type CrowdPrintRequest } from '../components/CrowdPrintDialog';
+import { CrowdPrintDocument, type CrowdPrintSnapshot } from '../components/CrowdPrintDocument';
 import { PageHeader } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
 import { useRouter } from '../router';
+import { withArea } from '../utils/areaQuery';
 import { downloadCsv } from '../utils/csv';
 import { describeError } from '../utils/errors';
 
 type Preset = 'day' | 'week' | 'month' | 'year' | 'custom';
 type SortField = 'verified_visits' | 'on_site_now' | 'interactions' | 'pressure_score' | 'dwell_minutes' | 'name';
+
+const DEST_PAGE_SIZE = 25;
 
 function manilaYmd(offsetDays = 0): string {
   const target = new Date(Date.now() + offsetDays * 86_400_000);
@@ -26,7 +32,7 @@ function numericOrZero(val: number | '<3' | undefined): number {
 }
 
 export function CrowdMonitoringPage() {
-  const { scope } = useAuth();
+  const { scope, selectedAreaId, profile } = useAuth();
   const { query, navigate } = useRouter();
   const isPlatform = Boolean(scope?.platform);
 
@@ -36,6 +42,7 @@ export function CrowdMonitoringPage() {
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>(
     () => (query.get('granularity') as 'day' | 'week' | 'month') || 'day',
   );
+  const [province, setProvince] = useState(() => query.get('province') || '');
   const [municipality, setMunicipality] = useState(() => query.get('municipality') || '');
   const [category, setCategory] = useState(() => query.get('category') || '');
   const [search, setSearch] = useState(() => query.get('q') || '');
@@ -44,7 +51,10 @@ export function CrowdMonitoringPage() {
   const [selectedSpotId, setSelectedSpotId] = useState<string>(() => query.get('spot') || '');
   const [sortField, setSortField] = useState<SortField>('verified_visits');
   const [sortAsc, setSortAsc] = useState(false);
+  const [destPage, setDestPage] = useState(1);
+  const [areaSearch, setAreaSearch] = useState('');
 
+  const [areasData, setAreasData] = useState<CrowdAreaOptions | null>(null);
   const [overview, setOverview] = useState<any>(null);
   const [heatmap, setHeatmap] = useState<any[]>([]);
   const [spotDetail, setSpotDetail] = useState<any>(null);
@@ -54,8 +64,15 @@ export function CrowdMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printError, setPrintError] = useState('');
+  const [printSnapshot, setPrintSnapshot] = useState<CrowdPrintSnapshot | null>(null);
+  const [pendingPrintTrigger, setPendingPrintTrigger] = useState(0);
+
   const applyPreset = (next: Preset) => {
     setPreset(next);
+    setDestPage(1);
     const today = manilaYmd(0);
     if (next === 'day') {
       setFrom(today);
@@ -77,11 +94,42 @@ export function CrowdMonitoringPage() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+    const qs = isPlatform && includeTest ? '?include_test=true' : '';
+    apiFetch<CrowdAreaOptions>(withArea(`/admin/crowd/areas${qs}`, selectedAreaId), {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (res && Array.isArray(res.provinces)) {
+          setAreasData(res);
+          if (res.scope_mode === 'municipality' && res.locked_municipality) {
+            setProvince(res.locked_province ?? '');
+            setMunicipality(res.locked_municipality);
+          } else if (res.scope_mode === 'province' && res.locked_province) {
+            setProvince(res.locked_province);
+          }
+        } else {
+          setAreasData(null);
+        }
+      })
+      .catch((cause) => {
+        if (cause instanceof DOMException && cause.name === 'AbortError') return;
+        setAreasData(null);
+      });
+    return () => controller.abort();
+  }, [includeTest, isPlatform, selectedAreaId]);
+
+  useEffect(() => {
+    setDestPage(1);
+  }, [from, to, granularity, province, municipality, category, search, onsiteHours, includeTest, sortField, sortAsc, selectedAreaId]);
+
+  useEffect(() => {
     const params = new URLSearchParams();
     params.set('range', preset);
     params.set('from', from);
     params.set('to', to);
     params.set('granularity', granularity);
+    if (province) params.set('province', province);
     if (municipality) params.set('municipality', municipality);
     if (category) params.set('category', category);
     if (search.trim()) params.set('q', search.trim());
@@ -89,38 +137,52 @@ export function CrowdMonitoringPage() {
     if (isPlatform && includeTest) params.set('include_test', 'true');
     if (selectedSpotId) params.set('spot', selectedSpotId);
     navigate(`/insights/crowd?${params.toString()}`, { replace: true });
-  }, [preset, from, to, granularity, municipality, category, search, onsiteHours, includeTest, selectedSpotId, isPlatform]);
+  }, [preset, from, to, granularity, province, municipality, category, search, onsiteHours, includeTest, selectedSpotId, isPlatform]);
 
-  const queryString = useMemo(() => {
+  const baseQueryString = useMemo(() => {
     const params = new URLSearchParams({
       from,
       to,
       granularity,
       onsite_hours: String(onsiteHours),
     });
+    if (province) params.set('province', province);
     if (municipality) params.set('municipality', municipality);
     if (category) params.set('category', category);
     if (search.trim()) params.set('q', search.trim());
     if (isPlatform && includeTest) params.set('include_test', 'true');
     return params.toString();
-  }, [from, to, granularity, municipality, category, search, onsiteHours, isPlatform, includeTest]);
+  }, [from, to, granularity, province, municipality, category, search, onsiteHours, isPlatform, includeTest]);
+
+  const overviewQueryString = useMemo(() => {
+    const params = new URLSearchParams(baseQueryString);
+    params.set('page', String(destPage));
+    params.set('limit', String(DEST_PAGE_SIZE));
+    params.set('sort', sortField);
+    params.set('dir', sortAsc ? 'asc' : 'desc');
+    return params.toString();
+  }, [baseQueryString, destPage, sortField, sortAsc]);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
       const sugQuery = selectedSpotId
-        ? `${queryString}&spot_id=${encodeURIComponent(selectedSpotId)}`
-        : queryString;
-      const sugPromise = apiFetch<{ suggestions: any[] }>(`/admin/crowd/suggestions?${sugQuery}`, { signal }).catch(
-        (cause) => {
-          if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
-          return { suggestions: [] };
-        },
-      );
+        ? `${baseQueryString}&spot_id=${encodeURIComponent(selectedSpotId)}`
+        : baseQueryString;
+      const sugPromise = apiFetch<{ suggestions: any[] }>(
+        withArea(`/admin/crowd/suggestions?${sugQuery}`, selectedAreaId),
+        { signal },
+      ).catch((cause) => {
+        if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+        return { suggestions: [] };
+      });
       if (selectedSpotId) {
         const [detail, sug] = await Promise.all([
-          apiFetch<any>(`/admin/crowd/spots/${encodeURIComponent(selectedSpotId)}?${queryString}`, { signal }),
+          apiFetch<any>(
+            withArea(`/admin/crowd/spots/${encodeURIComponent(selectedSpotId)}?${baseQueryString}`, selectedAreaId),
+            { signal },
+          ),
           sugPromise,
         ]);
         setSpotDetail(detail);
@@ -129,8 +191,8 @@ export function CrowdMonitoringPage() {
       } else {
         setSpotDetail(null);
         const [ov, hm, sug] = await Promise.all([
-          apiFetch<any>(`/admin/crowd/overview?${queryString}`, { signal }),
-          apiFetch<{ cells: any[] }>(`/admin/crowd/heatmap?${queryString}`, { signal }),
+          apiFetch<any>(withArea(`/admin/crowd/overview?${overviewQueryString}`, selectedAreaId), { signal }),
+          apiFetch<{ cells: any[] }>(withArea(`/admin/crowd/heatmap?${baseQueryString}`, selectedAreaId), { signal }),
           sugPromise,
         ]);
         setOverview(ov);
@@ -144,7 +206,7 @@ export function CrowdMonitoringPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [queryString, selectedSpotId]);
+  }, [baseQueryString, overviewQueryString, selectedSpotId, selectedAreaId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -170,11 +232,182 @@ export function CrowdMonitoringPage() {
     return copy;
   }, [topDestinations, sortField, sortAsc]);
 
+  const effectiveAreas = useMemo<CrowdAreaOptions | null>(() => {
+    if (areasData) return areasData;
+    if (!overview?.filter_options) return null;
+    const provs = (overview.filter_options.provinces ?? []).map((p: any) => ({
+      id: String(p.id),
+      name: String(p.name),
+      municipality_count: Number(p.municipality_count ?? 0),
+      spot_count: Number(p.spot_count ?? 0),
+    }));
+    const munis = (overview.filter_options.municipalities ?? []).map((m: string) => ({
+      name: m,
+      town_area_id: null,
+      province_id: '',
+      province_name: '',
+      spot_count: 0,
+    }));
+    return {
+      scope_mode: isPlatform ? 'platform' : 'multi_area',
+      locked_province: null,
+      locked_municipality: null,
+      provinces: provs,
+      municipalities: munis,
+      categories: overview.filter_options.categories ?? [],
+    };
+  }, [areasData, overview?.filter_options, isPlatform]);
+
+  const isMuniLocked = areasData?.scope_mode === 'municipality';
+  const isProvinceLocked = isMuniLocked || areasData?.scope_mode === 'province';
+
+  const availableProvinces = useMemo(() => effectiveAreas?.provinces ?? [], [effectiveAreas]);
+  const availableMunicipalities = useMemo(() => {
+    const structured = effectiveAreas?.municipalities ?? [];
+    if (structured.length > 0) {
+      return [...new Set(
+        structured
+          .filter((m) => !province || m.province_id === province || !m.province_id)
+          .map((m) => m.name),
+      )];
+    }
+    return (overview?.filter_options?.municipalities ?? []) as string[];
+  }, [effectiveAreas, province, overview?.filter_options?.municipalities]);
+
+  const selectedProvinceName =
+    availableProvinces.find((p) => p.id === province)?.name ??
+    areasData?.assigned_areas?.find((a) => a.area_id === province)?.area_name ??
+    '';
+
+  const rawAreaItems: any[] = overview?.area_breakdown?.items ?? [];
+  const areaLevel: 'province' | 'municipality' =
+    overview?.area_breakdown?.level ?? (province || isProvinceLocked ? 'municipality' : 'province');
+
+  const filteredAreaItems = useMemo(() => {
+    const q = areaSearch.trim().toLowerCase();
+    if (!q) return rawAreaItems;
+    return rawAreaItems.filter(
+      (item) =>
+        String(item.area_name || '').toLowerCase().includes(q) ||
+        String(item.province_name || '').toLowerCase().includes(q),
+    );
+  }, [rawAreaItems, areaSearch]);
+
+  const {
+    page: areaPage,
+    totalPages: areaTotalPages,
+    pageItems: pagedAreaItems,
+    setPage: setAreaPage,
+  } = useClientPagination(filteredAreaItems, 12);
+
+  const serverPagination = overview?.destinations_pagination as
+    | { page: number; limit: number; total: number; total_pages: number }
+    | undefined;
+  const totalDestinations = serverPagination?.total ?? sortedDestinations.length;
+  const totalDestPages = serverPagination?.total_pages ?? Math.max(1, Math.ceil(sortedDestinations.length / DEST_PAGE_SIZE));
+  const displayDestinations = serverPagination
+    ? sortedDestinations
+    : sortedDestinations.slice((destPage - 1) * DEST_PAGE_SIZE, destPage * DEST_PAGE_SIZE);
+
   const toggleSort = (field: SortField) => {
+    setDestPage(1);
     if (sortField === field) setSortAsc((prev) => !prev);
     else {
       setSortField(field);
       setSortAsc(false);
+    }
+  };
+
+  useEffect(() => {
+    const onAfterPrint = () => {
+      setPrintSnapshot(null);
+    };
+    window.addEventListener('afterprint', onAfterPrint);
+    return () => window.removeEventListener('afterprint', onAfterPrint);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingPrintTrigger || !printSnapshot) return;
+    const timer = window.setTimeout(() => {
+      window.print();
+      setPendingPrintTrigger(0);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pendingPrintTrigger, printSnapshot]);
+
+  const handleConfirmPrint = async (req: CrowdPrintRequest) => {
+    setPrintBusy(true);
+    setPrintError('');
+    try {
+      const p = new URLSearchParams({
+        from: req.from,
+        to: req.to,
+        granularity: req.granularity,
+        onsite_hours: String(req.onsiteHours),
+      });
+      if (req.province) p.set('province', req.province);
+      if (req.municipality) p.set('municipality', req.municipality);
+      if (category) p.set('category', category);
+      if (search.trim()) p.set('q', search.trim());
+      if (isPlatform && includeTest) p.set('include_test', 'true');
+      const baseQs = p.toString();
+
+      const ovParams = new URLSearchParams(p);
+      ovParams.set('include_all', 'true');
+      ovParams.set('sort', sortField);
+      ovParams.set('dir', sortAsc ? 'asc' : 'desc');
+
+      const [ov, hm, sug] = await Promise.all([
+        apiFetch<any>(withArea(`/admin/crowd/overview?${ovParams.toString()}`, selectedAreaId)),
+        apiFetch<{ cells: any[] }>(withArea(`/admin/crowd/heatmap?${baseQs}`, selectedAreaId)),
+        apiFetch<{ suggestions: any[] }>(withArea(`/admin/crowd/suggestions?${baseQs}`, selectedAreaId)).catch(() => ({
+          suggestions: [],
+        })),
+      ]);
+
+      const scopeParts: string[] = [];
+      if (req.municipality) {
+        scopeParts.push(req.municipality);
+        if (req.provinceLabel && !req.provinceLabel.startsWith('All ')) {
+          scopeParts.push(req.provinceLabel);
+        }
+      } else if (req.provinceLabel) {
+        scopeParts.push(req.provinceLabel);
+      } else {
+        scopeParts.push(isPlatform ? 'All accessible areas (Nationwide)' : 'Assigned area');
+      }
+
+      const generatedAt = `${new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).format(new Date())} PHT`;
+
+      setPrintSnapshot({
+        scopeLabel: scopeParts.join(' · '),
+        provinceLabel: req.provinceLabel,
+        municipalityLabel: req.municipality || 'All municipalities in scope',
+        from: req.from,
+        to: req.to,
+        granularity: req.granularity,
+        onsiteHours: req.onsiteHours,
+        generatedAt,
+        generatedBy: profile?.display_name ?? profile?.email ?? 'Admin',
+        overview: ov,
+        heatmap: hm?.cells ?? [],
+        suggestions: sug?.suggestions ?? [],
+        spotDetail: null,
+      });
+      setPrintDialogOpen(false);
+      setPendingPrintTrigger((n) => n + 1);
+    } catch (cause) {
+      setPrintError(describeError(cause, 'Unable to prepare printable crowd report.'));
+    } finally {
+      setPrintBusy(false);
     }
   };
 
@@ -189,7 +422,7 @@ export function CrowdMonitoringPage() {
     setError('');
     setActionNotice('');
     try {
-      await apiFetch(action.path, {
+      await apiFetch(withArea(action.path, selectedAreaId), {
         method: action.method,
         body: { ...(action.body ?? {}), idempotency_key: crypto.randomUUID() },
       });
@@ -208,7 +441,7 @@ export function CrowdMonitoringPage() {
     setError('');
     setActionNotice('');
     try {
-      await apiFetch('/admin/crowd/suggestions/dismiss', {
+      await apiFetch(withArea('/admin/crowd/suggestions/dismiss', selectedAreaId), {
         method: 'POST',
         body: { spot_id: sug.spot_id, suggestion_key: sug.suggestion_key },
       });
@@ -285,132 +518,246 @@ export function CrowdMonitoringPage() {
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div>
-      <PageHeader
-        title={spotDetail ? `Crowd monitoring · ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring'}
-        description="Aggregate traffic, on-site activity, conversion funnel, dwell proxy, and Manila-time capacity peaks. Individual travelers are never identified."
-        actions={
-          <PrintReport
-            title={spotDetail ? `Crowd monitoring — ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring overview'}
-            orientation="landscape"
-            filters={[
-              { label: 'Range', value: `${from} to ${to}` },
-              { label: 'Granularity', value: granularity },
-              { label: 'On-site window', value: `${onsiteHours}h` },
-              ...(municipality ? [{ label: 'Municipality', value: municipality }] : []),
-              ...(category ? [{ label: 'Category', value: category }] : []),
-              ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
-              ...(isPlatform && includeTest ? [{ label: 'Test data', value: 'Included' }] : []),
-            ]}
-            onExportCsv={activeData ? exportCsv : undefined}
-          />
-        }
-      />
-
-      <section className="stitch-panel panel-section" aria-label="Crowd filters">
-        <div className="section-heading-row">
-          <div className="filter-row">
-            {(['day', 'week', 'month', 'year', 'custom'] as Preset[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`filter-chip ${preset === p ? 'is-active' : ''}`}
-                onClick={() => applyPreset(p)}
-              >
-                {p === 'day' ? 'Day' : p === 'week' ? 'Week' : p === 'month' ? 'Month' : p === 'year' ? 'Year' : 'Custom'}
-              </button>
-            ))}
-          </div>
-          <div className="action-cluster">
-            {selectedSpotId && (
-              <button type="button" className="button button-secondary" onClick={() => setSelectedSpotId('')}>
-                <ArrowLeft size={14} /> All destinations
-              </button>
-            )}
-            <button type="button" className="button button-secondary" onClick={exportCsv} disabled={!activeData}>
-              <Download size={14} /> Export CSV
-            </button>
-            <button type="button" className="button button-secondary" onClick={() => void load()} disabled={loading}>
-              <RefreshCw size={14} /> Refresh
-            </button>
-          </div>
-        </div>
-
-        <div className="settings-grid" style={{ marginTop: 12 }}>
-          <label className="settings-field">
-            From (Manila date)
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => {
-                setPreset('custom');
-                setFrom(e.target.value);
+    <div className={printSnapshot ? 'crowd-has-print-doc' : ''}>
+      <div className="crowd-screen-view">
+        <PageHeader
+          title={spotDetail ? `Crowd monitoring · ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring'}
+          description="Aggregate traffic, on-site activity, conversion funnel, dwell proxy, and Manila-time capacity peaks. Individual travelers are never identified."
+          actions={
+            <PrintReport
+              title={spotDetail ? `Crowd monitoring — ${spotDetail.spot?.name || selectedSpotId}` : 'Crowd monitoring overview'}
+              orientation="landscape"
+              hideDefaultChrome
+              onPrint={() => {
+                setPrintError('');
+                setPrintDialogOpen(true);
               }}
+              filters={[
+                { label: 'Range', value: `${from} to ${to}` },
+                { label: 'Granularity', value: granularity },
+                { label: 'On-site window', value: `${onsiteHours}h` },
+                ...(selectedProvinceName ? [{ label: 'Province', value: selectedProvinceName }] : []),
+                ...(municipality ? [{ label: 'Municipality', value: municipality }] : []),
+                ...(category ? [{ label: 'Category', value: category }] : []),
+                ...(search.trim() ? [{ label: 'Search', value: search.trim() }] : []),
+                ...(isPlatform && includeTest ? [{ label: 'Test data', value: 'Included' }] : []),
+              ]}
+              onExportCsv={activeData ? exportCsv : undefined}
             />
-          </label>
-          <label className="settings-field">
-            To (Manila date)
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => {
-                setPreset('custom');
-                setTo(e.target.value);
+          }
+        />
+
+        <section className="stitch-panel panel-section" aria-label="Crowd filters">
+          <div className="section-heading-row">
+            <div className="filter-row">
+              {(['day', 'week', 'month', 'year', 'custom'] as Preset[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`filter-chip ${preset === p ? 'is-active' : ''}`}
+                  onClick={() => applyPreset(p)}
+                >
+                  {p === 'day' ? 'Day' : p === 'week' ? 'Week' : p === 'month' ? 'Month' : p === 'year' ? 'Year' : 'Custom'}
+                </button>
+              ))}
+            </div>
+            <div className="action-cluster">
+              {selectedSpotId && (
+                <button type="button" className="button button-secondary" onClick={() => setSelectedSpotId('')}>
+                  <ArrowLeft size={14} /> All destinations
+                </button>
+              )}
+              <button type="button" className="button button-secondary" onClick={exportCsv} disabled={!activeData}>
+                <Download size={14} /> Export CSV
+              </button>
+              <button type="button" className="button button-secondary" onClick={() => void load()} disabled={loading}>
+                <RefreshCw size={14} /> Refresh
+              </button>
+            </div>
+          </div>
+
+          <nav className="crowd-breadcrumb" aria-label="Geographic scope breadcrumb" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="crowd-breadcrumb-btn"
+              disabled={isProvinceLocked}
+              onClick={() => {
+                setProvince('');
+                setMunicipality('');
+                setSelectedSpotId('');
+                setDestPage(1);
               }}
-            />
-          </label>
-          <label className="settings-field">
-            Bucket granularity
-            <select value={granularity} onChange={(e) => setGranularity(e.target.value as 'day' | 'week' | 'month')}>
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
-          </label>
-          <label className="settings-field">
-            On-site window (hours)
-            <select value={onsiteHours} onChange={(e) => setOnsiteHours(Number(e.target.value))}>
-              {[1, 2, 3, 4, 5, 6].map((h) => (
-                <option key={h} value={h}>
-                  Last {h} h
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="settings-field">
-            Municipality
-            <select value={municipality} onChange={(e) => setMunicipality(e.target.value)}>
-              <option value="">All municipalities</option>
-              {(overview?.filter_options?.municipalities ?? []).map((m: string) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="settings-field">
-            Category
-            <select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">All categories</option>
-              {(overview?.filter_options?.categories ?? []).map((c: string) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="settings-field">
-            Destination search
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by spot or town…" />
-          </label>
-          {isPlatform && (
-            <label className="checkbox-inline" style={{ alignSelf: 'end', paddingBottom: 8 }}>
-              <input type="checkbox" checked={includeTest} onChange={(e) => setIncludeTest(e.target.checked)} />
-              Include test data
+            >
+              {isPlatform ? 'All provinces (Nationwide)' : 'Assigned scope'}
+            </button>
+            {selectedProvinceName ? (
+              <>
+                <ChevronRight size={14} aria-hidden="true" />
+                <button
+                  type="button"
+                  className="crowd-breadcrumb-btn"
+                  disabled={isMuniLocked}
+                  onClick={() => {
+                    setMunicipality('');
+                    setSelectedSpotId('');
+                    setDestPage(1);
+                  }}
+                >
+                  {selectedProvinceName}
+                </button>
+              </>
+            ) : null}
+            {municipality ? (
+              <>
+                <ChevronRight size={14} aria-hidden="true" />
+                <span className="crowd-breadcrumb-current">{municipality}</span>
+              </>
+            ) : null}
+            {spotDetail?.spot?.name ? (
+              <>
+                <ChevronRight size={14} aria-hidden="true" />
+                <span className="crowd-breadcrumb-current">{spotDetail.spot.name}</span>
+              </>
+            ) : null}
+          </nav>
+
+          {isMuniLocked || isProvinceLocked ? (
+            <div className="status-banner" role="status" style={{ marginTop: 10 }}>
+              <strong>Assigned area lock:</strong>
+              <span>
+                {isMuniLocked
+                  ? `Showing only destinations in ${areasData?.locked_municipality || municipality || 'your municipality'}.`
+                  : `Showing only destinations in ${selectedProvinceName || 'your assigned province'}.`}
+              </span>
+            </div>
+          ) : null}
+
+          <div className="settings-grid" style={{ marginTop: 12 }}>
+            <label className="settings-field">
+              From (Manila date)
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => {
+                  setPreset('custom');
+                  setFrom(e.target.value);
+                  setDestPage(1);
+                }}
+              />
             </label>
-          )}
-        </div>
-      </section>
+            <label className="settings-field">
+              To (Manila date)
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => {
+                  setPreset('custom');
+                  setTo(e.target.value);
+                  setDestPage(1);
+                }}
+              />
+            </label>
+            <label className="settings-field">
+              Bucket granularity
+              <select value={granularity} onChange={(e) => setGranularity(e.target.value as 'day' | 'week' | 'month')}>
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+              </select>
+            </label>
+            <label className="settings-field">
+              On-site window (hours)
+              <select value={onsiteHours} onChange={(e) => setOnsiteHours(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6].map((h) => (
+                  <option key={h} value={h}>
+                    Last {h} h
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field">
+              Province
+              <select
+                aria-label="Province"
+                value={province}
+                disabled={isProvinceLocked}
+                onChange={(e) => {
+                  setProvince(e.target.value);
+                  setMunicipality('');
+                  setDestPage(1);
+                }}
+              >
+                <option value="">{isPlatform ? 'All provinces' : 'All assigned provinces'}</option>
+                {availableProvinces.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.spot_count > 0 ? ` (${p.spot_count})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field">
+              Municipality / city
+              <select
+                aria-label="Municipality"
+                value={municipality}
+                disabled={isMuniLocked}
+                onChange={(e) => {
+                  setMunicipality(e.target.value);
+                  setDestPage(1);
+                }}
+              >
+                <option value="">All municipalities</option>
+                {availableMunicipalities.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field">
+              Category
+              <select
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setDestPage(1);
+                }}
+              >
+                <option value="">All categories</option>
+                {(effectiveAreas?.categories ?? overview?.filter_options?.categories ?? []).map((c: string) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-field">
+              Destination search
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setDestPage(1);
+                }}
+                placeholder="Filter by spot, town, or province…"
+              />
+            </label>
+            {isPlatform && (
+              <label className="checkbox-inline" style={{ alignSelf: 'end', paddingBottom: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={includeTest}
+                  onChange={(e) => {
+                    setIncludeTest(e.target.checked);
+                    setDestPage(1);
+                  }}
+                />
+                Include test data
+              </label>
+            )}
+          </div>
+        </section>
 
       {error && (
         <div className="load-error" role="alert">
@@ -666,6 +1013,89 @@ export function CrowdMonitoringPage() {
             </section>
           ) : (
             <>
+              {rawAreaItems.length > 0 && (
+                <section className="stitch-panel panel-section" aria-label="Geographic traffic rollup">
+                  <div className="section-heading-row" style={{ marginBottom: 10 }}>
+                    <div>
+                      <h2 className="section-title">
+                        Traffic by {areaLevel === 'province' ? 'province' : 'municipality / city'} ({rawAreaItems.length})
+                      </h2>
+                      <p className="section-description">
+                        {areaLevel === 'province'
+                          ? 'Click a province to drill down into its municipalities and destinations.'
+                          : 'Click a municipality or city to filter the destinations ledger.'}
+                      </p>
+                    </div>
+                    <AdminSearchBar
+                      value={areaSearch}
+                      onChange={setAreaSearch}
+                      placeholder={areaLevel === 'province' ? 'Search province…' : 'Search city or town…'}
+                      ariaLabel={`Filter ${areaLevel === 'province' ? 'provinces' : 'municipalities'}`}
+                      totalCount={rawAreaItems.length}
+                      filteredCount={filteredAreaItems.length}
+                      shownCount={pagedAreaItems.length}
+                      itemLabel={areaLevel === 'province' ? 'provinces' : 'municipalities'}
+                    />
+                  </div>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>{areaLevel === 'province' ? 'Province' : 'Municipality / City'}</th>
+                          {areaLevel !== 'province' ? <th>Province</th> : null}
+                          <th>Destinations</th>
+                          <th>Busy now</th>
+                          <th>Unique visitors</th>
+                          <th>Verified visits</th>
+                          <th>Interactions</th>
+                          <th>On-site now</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedAreaItems.map((item: any) => (
+                          <tr
+                            key={item.area_key}
+                            className="crowd-area-table-row"
+                            onClick={() => {
+                              if (areaLevel === 'province') {
+                                if (isProvinceLocked) return;
+                                setProvince(item.province_id || item.area_key);
+                                setMunicipality('');
+                                setDestPage(1);
+                              } else {
+                                if (isMuniLocked) return;
+                                setMunicipality(item.area_name);
+                                if (!province && item.province_id && item.province_id !== '__unassigned__') {
+                                  setProvince(item.province_id);
+                                }
+                                setDestPage(1);
+                              }
+                            }}
+                          >
+                            <td>
+                              <strong>{item.area_name}</strong>
+                            </td>
+                            {areaLevel !== 'province' ? <td>{item.province_name}</td> : null}
+                            <td>{item.spots}</td>
+                            <td>{item.busy_spots}</td>
+                            <td>{item.unique_visitors}</td>
+                            <td>{item.verified_visits}</td>
+                            <td>{item.interactions}</td>
+                            <td>{item.on_site_now}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <AdminPagination
+                    page={areaPage}
+                    totalPages={areaTotalPages}
+                    totalItems={filteredAreaItems.length}
+                    onPageChange={setAreaPage}
+                  />
+                </section>
+              )}
+
               <section className="stitch-panel panel-section" aria-label="Category breakdown">
                 <h2 className="section-title">Category breakdown</h2>
                 <div className="table-scroll">
@@ -695,57 +1125,90 @@ export function CrowdMonitoringPage() {
               </section>
 
               <section className="stitch-panel panel-section" aria-label="Top destinations">
-                <h2 className="section-title">Destinations traffic ({sortedDestinations.length})</h2>
+                <h2 className="section-title">Destinations traffic ({totalDestinations})</h2>
                 <p className="section-description">Click any destination row to drill down into its crowd timeline and funnel.</p>
-                {sortedDestinations.length === 0 ? (
+                {displayDestinations.length === 0 ? (
                   <p className="empty-state">No destinations match the current filters.</p>
                 ) : (
-                  <div className="table-scroll">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('name')}>Destination</button></th>
-                          <th>Crowd now</th>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('pressure_score')}>Pressure</button></th>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('verified_visits')}>Verified visits</button></th>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('on_site_now')}>On-site now</button></th>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('interactions')}>Interactions</button></th>
-                          <th>Plan to go</th>
-                          <th>Trail check-ins</th>
-                          <th><button type="button" className="sort-header" onClick={() => toggleSort('dwell_minutes')}>Dwell (min)</button></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedDestinations.map((d) => (
-                          <tr key={d.spot_id} onClick={() => setSelectedSpotId(d.spot_id)} style={{ cursor: 'pointer' }}>
-                            <td>
-                              <strong>{d.name}</strong>
-                              <small>{d.municipality} · {d.category}{d.recommendation_suppressed ? ' · SUPPRESSED' : ''}</small>
-                            </td>
-                            <td>
-                              <span className={`pill ${d.crowd_status === 'estimated_busy' ? 'pill-danger' : d.crowd_status === 'moderate' ? 'pill-warn' : ''}`}>
-                                {d.crowd_status}
-                              </span>
-                              <small>{d.crowd_capacity_band} ({d.crowd_confidence})</small>
-                            </td>
-                            <td>{d.pressure_score}</td>
-                            <td>{d.verified_visits}</td>
-                            <td>{d.on_site_now}</td>
-                            <td>{d.interactions}</td>
-                            <td>{d.planning_to_go}</td>
-                            <td>{d.trail_checkins}</td>
-                            <td>{d.dwell_minutes}</td>
+                  <>
+                    <div className="table-scroll">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('name')}>Destination</button></th>
+                            <th>Crowd now</th>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('pressure_score')}>Pressure</button></th>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('verified_visits')}>Verified visits</button></th>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('on_site_now')}>On-site now</button></th>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('interactions')}>Interactions</button></th>
+                            <th>Plan to go</th>
+                            <th>Trail check-ins</th>
+                            <th><button type="button" className="sort-header" onClick={() => toggleSort('dwell_minutes')}>Dwell (min)</button></th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {displayDestinations.map((d) => (
+                            <tr key={d.spot_id} onClick={() => setSelectedSpotId(d.spot_id)} style={{ cursor: 'pointer' }}>
+                              <td>
+                                <strong>{d.name}</strong>
+                                <small>
+                                  {d.municipality}
+                                  {d.province_name && d.province_name !== 'Unassigned province' ? `, ${d.province_name}` : ''}
+                                  {' · '}
+                                  {d.category}
+                                  {d.recommendation_suppressed ? ' · SUPPRESSED' : ''}
+                                </small>
+                              </td>
+                              <td>
+                                <span className={`pill ${d.crowd_status === 'estimated_busy' ? 'pill-danger' : d.crowd_status === 'moderate' ? 'pill-warn' : ''}`}>
+                                  {d.crowd_status}
+                                </span>
+                                <small>{d.crowd_capacity_band} ({d.crowd_confidence})</small>
+                              </td>
+                              <td>{d.pressure_score}</td>
+                              <td>{d.verified_visits}</td>
+                              <td>{d.on_site_now}</td>
+                              <td>{d.interactions}</td>
+                              <td>{d.planning_to_go}</td>
+                              <td>{d.trail_checkins}</td>
+                              <td>{d.dwell_minutes}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <AdminPagination
+                      page={serverPagination?.page ?? destPage}
+                      totalPages={totalDestPages}
+                      totalItems={totalDestinations}
+                      onPageChange={setDestPage}
+                    />
+                  </>
                 )}
               </section>
             </>
           )}
         </>
       ) : null}
+      </div>
+
+      <CrowdPrintDialog
+        open={printDialogOpen}
+        onClose={() => !printBusy && setPrintDialogOpen(false)}
+        areas={effectiveAreas}
+        isPlatform={isPlatform}
+        initialProvince={province}
+        initialMunicipality={municipality}
+        initialFrom={from}
+        initialTo={to}
+        initialGranularity={granularity}
+        initialOnsiteHours={onsiteHours}
+        busy={printBusy}
+        error={printError}
+        onConfirm={(req) => void handleConfirmPrint(req)}
+      />
+
+      <CrowdPrintDocument snapshot={printSnapshot} />
     </div>
   );
 }

@@ -2301,4 +2301,320 @@ a.chain-mono:hover { text-decoration: underline; }
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  .crowd-has-print-doc .crowd-screen-view {
+    display: none !important;
+  }
+
+  .crowd-print-doc {
+    display: block !important;
+    color: #1b1c1a !important;
+    font-size: 11px;
+    line-height: 1.38;
+  }
+
+  .crowd-print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .crowd-print-page-numbers {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .crowd-print-header {
+    border-bottom: 2px solid #1b1c1a;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+  }
+
+  .crowd-print-running-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #514532 !important;
+    border-bottom: 1px solid #d5c4ac;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+  }
+
+  .crowd-print-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 10px;
+    color: #1b1c1a !important;
+  }
+
+  .crowd-print-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .crowd-print-kpi-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .crowd-print-kpi {
+    border: 1px solid #d5c4ac;
+    border-radius: 6px;
+    padding: 8px 10px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .crowd-print-kpi span {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #514532 !important;
+  }
+
+  .crowd-print-kpi strong {
+    display: block;
+    font-size: 16px;
+    margin: 2px 0;
+    color: #1b1c1a !important;
+  }
+
+  .crowd-print-kpi small {
+    font-size: 9.5px;
+    color: #514532 !important;
+  }
+
+  .crowd-print-summary-box {
+    border: 1px solid #d5c4ac;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .crowd-print-summary-box h3,
+  .crowd-print-panel h3,
+  .crowd-print-table-block h3 {
+    font-size: 12px;
+    margin: 0 0 6px;
+    color: #1b1c1a !important;
+  }
+
+  .crowd-print-summary-box ul {
+    margin: 0;
+    padding-left: 16px;
+  }
+
+  .crowd-print-summary-box li {
+    margin-bottom: 4px;
+  }
+
+  .crowd-print-panel {
+    border: 1px solid #d5c4ac;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .crowd-print-chart .bar-fill,
+  .crowd-print-heatmap td,
+  .crowd-print-swatch,
+  .crowd-print-group-row {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .crowd-print-legend {
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .crowd-print-swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin: 0 4px 0 8px;
+    border-radius: 2px;
+  }
+
+  .crowd-print-swatch-primary {
+    background: var(--success-green);
+  }
+
+  .crowd-print-swatch-secondary {
+    background: var(--primary-gold);
+  }
+
+  .crowd-print-heatmap {
+    font-size: 8.5px;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .crowd-print-heatmap th,
+  .crowd-print-heatmap td {
+    padding: 2px;
+    text-align: center;
+    border: 1px solid #e6dccd;
+  }
+
+  .crowd-print-table-block {
+    margin-bottom: 14px;
+  }
+
+  .crowd-print-table {
+    font-size: 9.5px;
+  }
+
+  .crowd-print-table th,
+  .crowd-print-table td {
+    padding: 4px 5px;
+  }
+
+  .crowd-print-group-row td {
+    background: #f4f1ea !important;
+    border-top: 1.5px solid #837560;
+    color: #1b1c1a !important;
+  }
+}
+
+/* Pre-print dialog, nationwide breadcrumbs, and hidden printable layout */
+.crowd-print-doc {
+  display: none;
+}
+
+.crowd-print-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(13, 27, 42, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.crowd-print-modal {
+  width: min(680px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(13, 27, 42, 0.24);
+}
+
+.crowd-print-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.crowd-print-modal-head h2 {
+  margin: 0 0 4px;
+}
+
+.crowd-print-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.crowd-print-fieldset {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.crowd-print-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.crowd-print-radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.crowd-print-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.crowd-print-pickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.crowd-print-outline {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  font-size: 0.88rem;
+}
+
+.crowd-print-outline ol {
+  margin: 6px 0 0 18px;
+}
+
+.crowd-print-outline li {
+  margin-bottom: 3px;
+}
+
+.crowd-print-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.crowd-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.crowd-breadcrumb-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--secondary-green);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crowd-breadcrumb-btn:hover {
+  background: var(--bg-card-hover);
+}
+
+.crowd-breadcrumb-current {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.crowd-area-table-row {
+  cursor: pointer;
+}
+
+.crowd-area-table-row:hover {
+  background: var(--bg-card-hover);
 }
