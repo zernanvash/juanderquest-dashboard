@@ -15,6 +15,7 @@ import { SukiCardsPage } from './pages/SukiCardsPage';
 import { SpotPhotosPage } from './pages/SpotPhotosPage';
 import { StampsPage } from './pages/StampsPage';
 import { PlazaModerationPage } from './pages/PlazaModerationPage';
+import { AvatarReportsPage } from './pages/AvatarReportsPage';
 import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
 import { VouchersPage } from './pages/VouchersPage';
@@ -103,6 +104,8 @@ function RouteOutlet() {
       return <StampsPage />;
     case '/plaza-moderation':
       return <PlazaModerationPage />;
+    case '/avatar-reports':
+      return <AvatarReportsPage />;
     case '/quizzes':
       return <QuizzesPage />;
     case '/juanchoice':

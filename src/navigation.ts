@@ -141,6 +141,13 @@ export const NAV_SECTIONS: NavSection[] = [
         description: 'Review reported Plaza comments, resolve traveler flags, and moderate social activities.',
         available: true,
       },
+      {
+        path: '/avatar-reports',
+        label: 'Profile picture reports',
+        icon: UserCog,
+        description: 'Reported traveler profile pictures; reset to the default avatar or dismiss.',
+        available: true,
+      },
     ],
   },
   {
