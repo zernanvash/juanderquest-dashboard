@@ -42,6 +42,10 @@ import { ShopCosmeticEditorPage } from './pages/ShopCosmeticEditorPage';
 import { TrailStudioPage } from './pages/TrailStudioPage';
 import { DeveloperRolesPage } from './pages/DeveloperRolesPage';
 import { MobileAppPage } from './pages/MobileAppPage';
+import { UsersPage } from './pages/UsersPage';
+import { UserDetailPage } from './pages/UserDetailPage';
+import { TokensBadgesPage } from './pages/TokensBadgesPage';
+import { SuspiciousActivityPage } from './pages/SuspiciousActivityPage';
 
 export function App() {
   return (
@@ -137,6 +141,12 @@ function RouteOutlet() {
       return <MerchantFundingPage />;
     case '/economy/give-mjdq':
       return <GiveMjdqPage />;
+    case '/economy/tokens-badges':
+      return <TokensBadgesPage />;
+    case '/users':
+      return <UsersPage />;
+    case '/suspicious-activity':
+      return <SuspiciousActivityPage />;
     case '/insights/crowd':
       return <CrowdMonitoringPage />;
     case '/insights/analytics':
@@ -156,6 +166,10 @@ function RouteOutlet() {
     case '/system/economy-lab':
       return economyLabEnabled ? <EconomyLabPage /> : <NotFoundPage />;
     default:
+      if (path.startsWith('/users/')) {
+        const userId = decodeURIComponent(path.slice('/users/'.length));
+        if (userId && !userId.includes('/')) return <UserDetailPage userId={userId} />;
+      }
       if (path.startsWith('/economy/funding/')) {
         const planId = decodeURIComponent(path.slice('/economy/funding/'.length));
         if (planId && !planId.includes('/')) return <FundingDetailPage planId={planId} />;

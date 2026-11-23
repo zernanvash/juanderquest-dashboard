@@ -23,6 +23,7 @@ import {
   Store,
   Ticket,
   UserCog,
+  Users,
   Vote,
   Wallet,
   type LucideIcon,
@@ -151,6 +152,28 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    id: 'people',
+    label: 'People',
+    items: [
+      {
+        path: '/users',
+        label: 'Users',
+        icon: Users,
+        description: 'Search accounts, inspect ledgers & activity, suspend or sign out.',
+        available: true,
+        requires: { platform: true },
+      },
+      {
+        path: '/suspicious-activity',
+        label: 'Suspicious activity',
+        icon: ShieldAlert,
+        description: 'Review anomaly flags, run scans, and action high-risk accounts.',
+        available: true,
+        requires: { platform: true },
+      },
+    ],
+  },
+  {
     id: 'juanchoice',
     label: 'JuanChoice',
     items: [
@@ -254,6 +277,14 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Give mJDQ',
         icon: Gift,
         description: 'Give simulated beta mJDQ to a traveler; ledger-recorded and anchored on Polygon Amoy.',
+        available: true,
+        requires: { platform: true },
+      },
+      {
+        path: '/economy/tokens-badges',
+        label: 'Tokens & badges',
+        icon: Award,
+        description: 'Monitor points, stamps, XP and badge issuance and ledger transactions.',
         available: true,
         requires: { platform: true },
       },

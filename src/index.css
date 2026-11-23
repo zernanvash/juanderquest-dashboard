@@ -2618,3 +2618,116 @@ a.chain-mono:hover { text-decoration: underline; }
 .crowd-area-table-row:hover {
   background: var(--bg-card-hover);
 }
+
+/* Plan 117: Users, Tokens & Badges, Suspicious Activity ------------- */
+
+.plan117-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.plan117-search-field,
+.plan117-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.plan117-search-field {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.plan117-filter-field {
+  min-width: 130px;
+}
+
+.plan117-search-field input,
+.plan117-filter-field select,
+.action-cluster select,
+.action-cluster input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.plan117-user-link {
+  color: var(--wood-brown);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.plan117-subtext {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.plan117-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.plan117-mt {
+  margin-top: 18px;
+}
+
+.plan117-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.plan117-chart-card {
+  padding: 14px;
+}
+
+.plan117-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.plan117-chart-head span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.plan117-svg-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.plan117-split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+
+.metric-card strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .plan117-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .plan117-search-field {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
