@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, LogOut, Menu, X } from 'lucide-react';
 import { Link, useRouter } from './router';
 import { useAuth } from './auth';
+import { apiFetch } from './api/client';
+import { withArea } from './utils/areaQuery';
 import { canOpenNavItem, findNavItem, visibleNavSections } from './navigation';
 
 const NON_COLLAPSIBLE_SECTIONS = new Set(['overview', 'blockchain']);
@@ -34,6 +36,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activeGrant = scope?.grants.find((grant) => grant.area_id === selectedAreaId);
   const activePowers = activeGrant?.powers || scope?.grants.flatMap((grant) => grant.powers) || [];
   const isDeveloper = profile?.role === 'admin' && profile?.admin_scope === 'developer';
+  const canModerateDestinations = Boolean(scope?.platform || activePowers.includes('destinations'));
+  const [pendingRelocations, setPendingRelocations] = useState(0);
+
+  useEffect(() => {
+    if (!canModerateDestinations) {
+      setPendingRelocations(0);
+      return;
+    }
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const list = await apiFetch<unknown[]>(
+          withArea('/admin/spots/relocations?status=pending', selectedAreaId),
+        );
+        if (!cancelled && Array.isArray(list)) setPendingRelocations(list.length);
+      } catch {
+        // Non-blocking badge count
+      }
+    };
+    void fetchCount();
+    const onChanged = () => void fetchCount();
+    window.addEventListener('jdq:relocations-changed', onChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('jdq:relocations-changed', onChanged);
+    };
+  }, [canModerateDestinations, selectedAreaId]);
 
   const toggleSection = (sectionId: string) => {
     setCollapsedSections((current) => {
@@ -119,6 +148,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                           >
                             <Icon size={16} aria-hidden="true" />
                             <span>{item.label}</span>
+                            {pendingRelocations > 0 &&
+                            (item.path === '/destinations' || item.path === '/destinations/relocations') ? (
+                              <span
+                                className="nav-count-badge"
+                                style={{
+                                  marginLeft: 'auto',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 999,
+                                  background: '#c2410c',
+                                  color: '#fff',
+                                }}
+                                aria-label={`${pendingRelocations} pending relocations`}
+                              >
+                                {pendingRelocations}
+                              </span>
+                            ) : null}
                           </Link>
                         </li>
                       );

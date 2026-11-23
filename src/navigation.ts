@@ -95,6 +95,14 @@ export const NAV_SECTIONS: NavSection[] = [
         requires: { power: 'destinations' },
       },
       {
+        path: '/destinations/relocations',
+        label: 'Relocations',
+        icon: MapPin,
+        description: 'Review destination pin moves larger than 200 m before updating coordinates.',
+        available: true,
+        requires: { power: 'destinations' },
+      },
+      {
         path: '/quests',
         label: 'Quests',
         icon: MapPin,

@@ -9,6 +9,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
 import { QuestReviewsPage } from './pages/QuestReviewsPage';
 import { DestinationsPage } from './pages/DestinationsPage';
+import { RelocationsPage } from './pages/RelocationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { SpotReportsPage } from './pages/SpotReportsPage';
 import { SukiCardsPage } from './pages/SukiCardsPage';
@@ -92,6 +93,8 @@ function RouteOutlet() {
       return <QuestReviewsPage />;
     case '/destinations':
       return <DestinationsPage />;
+    case '/destinations/relocations':
+      return <RelocationsPage />;
     case '/area-admins':
       return <AreaAdminsPage />;
     case '/quests':
