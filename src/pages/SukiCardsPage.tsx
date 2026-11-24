@@ -21,6 +21,11 @@ export interface SukiProgramRow {
   cards: number;
   visits_30d: number;
   flagged: number;
+  points_enabled?: boolean;
+  tiers_count?: number;
+  points_issued_30d?: number;
+  points_redeemed_30d?: number;
+  skin_key?: string;
 }
 
 export interface SukiTownRow {
@@ -126,6 +131,7 @@ export function SukiCardsPage() {
                     <th>Status</th>
                     <th>Cards</th>
                     <th>Visits (30 d)</th>
+                    <th>Points (30 d)</th>
                     <th>Flagged</th>
                     <th>Action</th>
                   </tr>
@@ -138,7 +144,10 @@ export function SukiCardsPage() {
                       <td>
                         {program.title}: {program.visits_required} visits → {program.reward_text}
                         <br />
-                        <small>{program.mode === 'staff_scan' ? 'Staff scan' : 'Counter standee'}</small>
+                        <small>
+                          {program.mode === 'staff_scan' ? 'Staff scan' : 'Counter standee'}
+                          {(program.tiers_count ?? 1) > 1 ? ` · ${program.tiers_count} milestones` : ''}
+                        </small>
                       </td>
                       <td>
                         <span className={`status-pill status-${program.status === 'active' ? 'approved' : 'pending'}`}>
@@ -149,6 +158,15 @@ export function SukiCardsPage() {
                       </td>
                       <td>{program.cards}</td>
                       <td>{program.visits_30d}</td>
+                      <td>
+                        {program.points_enabled || (program.points_issued_30d ?? 0) > 0 || (program.points_redeemed_30d ?? 0) > 0 ? (
+                          <span>
+                            +{program.points_issued_30d ?? 0} / -{program.points_redeemed_30d ?? 0}
+                          </span>
+                        ) : (
+                          <small>Off</small>
+                        )}
+                      </td>
                       <td>{program.flagged}</td>
                       <td>
                         {program.paused_by === 'admin' ? (
