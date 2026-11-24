@@ -67,6 +67,22 @@ function isValidHttpsUrl(raw: string): boolean {
   }
 }
 
+// Owner 2026-11-24: date fields use the native calendar picker. The picker works in local time;
+// the setting keeps storing an ISO timestamp (UTC), as before.
+function isoToLocalInput(iso: string): string {
+  const ms = Date.parse(iso.trim());
+  if (!Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localInputToIso(local: string): string {
+  if (!local) return '';
+  const ms = new Date(local).getTime();
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
+}
+
 function buildCampaignId(previous: string): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -389,12 +405,11 @@ export function MobileAppPage() {
                 />
               </label>
               <label className="settings-field">
-                Announcement expires at (optional ISO timestamp)
+                Announcement expires at (optional)
                 <input
-                  value={bannerUntil}
-                  maxLength={40}
-                  onChange={(e) => setBannerUntil(e.target.value)}
-                  placeholder="2026-12-01T15:00:00Z"
+                  type="datetime-local"
+                  value={isoToLocalInput(bannerUntil)}
+                  onChange={(e) => setBannerUntil(localInputToIso(e.target.value))}
                 />
               </label>
               <label className="settings-field">
@@ -502,12 +517,11 @@ export function MobileAppPage() {
 
               <div className="settings-field">
                 <label className="settings-field">
-                  Auto-expire at (optional ISO timestamp)
+                  Auto-expire at (optional)
                   <input
-                    value={promoUntil}
-                    maxLength={40}
-                    onChange={(e) => setPromoUntil(e.target.value)}
-                    placeholder="2026-12-15T15:59:59Z"
+                    type="datetime-local"
+                    value={isoToLocalInput(promoUntil)}
+                    onChange={(e) => setPromoUntil(localInputToIso(e.target.value))}
                   />
                 </label>
                 {promoUntilInvalid ? (

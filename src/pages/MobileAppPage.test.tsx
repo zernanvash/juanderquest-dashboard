@@ -136,6 +136,12 @@ describe('MobileAppPage (WP-5)', () => {
     const rotatedId = (screen.getByLabelText('Campaign ID') as HTMLInputElement).value;
     expect(rotatedId).toMatch(/^promo-\d{8}-\d{6}/);
 
+    // Native calendar picker (datetime-local, local time) is saved as an ISO timestamp.
+    const expiry = screen.getByLabelText(/^Auto-expire at/i) as HTMLInputElement;
+    expect(expiry.type).toBe('datetime-local');
+    fireEvent.change(expiry, { target: { value: '2099-12-15T23:59' } });
+    expect(expiry.value).toBe('2099-12-15T23:59');
+
     expect(savePromoBtn).not.toBeDisabled();
     fireEvent.click(savePromoBtn);
 
@@ -153,7 +159,7 @@ describe('MobileAppPage (WP-5)', () => {
               app_promo_body: 'Help us polish v0.4.',
               app_promo_cta_label: 'Take Survey',
               app_promo_url: 'https://forms.gle/abc123',
-              app_promo_until: '',
+              app_promo_until: new Date('2099-12-15T23:59').toISOString(),
             },
           }),
         }),
