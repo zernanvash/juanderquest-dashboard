@@ -26,6 +26,10 @@ const program = {
   cards: 12,
   visits_30d: 40,
   flagged: 2,
+  points_enabled: true,
+  tiers_count: 3,
+  points_issued_30d: 120,
+  points_redeemed_30d: 45,
 };
 
 describe('Plan 107 Suki Cards admin page', () => {
@@ -59,6 +63,8 @@ describe('Plan 107 Suki Cards admin page', () => {
 
     expect(await screen.findByText('Aling Nena Cafe')).toBeTruthy();
     expect(screen.getByText('2026-11-16')).toBeTruthy();
+    expect(screen.getByText('+120 / -45')).toBeTruthy();
+    expect(screen.getByText(/3 milestones/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(screen.getByRole('alert').textContent).toContain('reason');
