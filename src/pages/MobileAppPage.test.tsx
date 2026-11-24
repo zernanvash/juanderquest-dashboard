@@ -47,6 +47,13 @@ const mockOverview = {
     app_announcement_text: '',
     app_announcement_severity: 'info' as const,
     app_announcement_until: '',
+    app_promo_enabled: false,
+    app_promo_campaign_id: '',
+    app_promo_title: '',
+    app_promo_body: '',
+    app_promo_cta_label: 'Open Form',
+    app_promo_url: '',
+    app_promo_until: '',
   },
 };
 
@@ -89,6 +96,64 @@ describe('MobileAppPage (WP-5)', () => {
               app_announcement_text: 'Upgrade to v0.4',
               app_announcement_severity: 'warning',
               app_announcement_until: '',
+            },
+          }),
+        }),
+      ),
+    );
+  });
+
+  it('renders promo panel controls + live preview, validates HTTPS URL, rotates campaign_id, and saves all 7 keys', async () => {
+    api.mockImplementation(async (path: string, init?: { method?: string }) => {
+      if (path === '/admin/mobile-app/overview') return mockOverview as never;
+      if (path === '/admin/settings' && init?.method === 'PUT') return { revision: 5 } as never;
+      return {} as never;
+    });
+
+    render(<MobileAppPage />);
+    expect(await screen.findByText('Home Feedback & Promotion Panel')).toBeInTheDocument();
+
+    const preview = screen.getByLabelText('Home promo live preview');
+    expect(preview).toHaveTextContent('DISABLED');
+
+    const savePromoBtn = screen.getByRole('button', { name: 'Save promo panel' });
+
+    fireEvent.click(screen.getByLabelText('Show highlighted panel on Mobile Home'));
+    fireEvent.change(screen.getByLabelText(/^Headline/i), { target: { value: 'Share Beta Feedback!' } });
+    fireEvent.change(screen.getByLabelText(/^Description/i), { target: { value: 'Help us polish v0.4.' } });
+    fireEvent.change(screen.getByLabelText(/^Button label/i), { target: { value: 'Take Survey' } });
+    fireEvent.change(screen.getByLabelText('Form URL (HTTPS)'), { target: { value: 'http://insecure.example.com' } });
+
+    expect(screen.getByText(/Form URL must start with https:\/\//i)).toBeInTheDocument();
+    expect(savePromoBtn).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Form URL (HTTPS)'), { target: { value: 'https://forms.gle/abc123' } });
+    expect(preview).toHaveTextContent('LIVE');
+    expect(preview).toHaveTextContent('Share Beta Feedback!');
+    expect(preview).toHaveTextContent('TAKE SURVEY');
+
+    fireEvent.click(screen.getByRole('button', { name: 'New campaign ID' }));
+    const rotatedId = (screen.getByLabelText('Campaign ID') as HTMLInputElement).value;
+    expect(rotatedId).toMatch(/^promo-\d{8}-\d{6}/);
+
+    expect(savePromoBtn).not.toBeDisabled();
+    fireEvent.click(savePromoBtn);
+
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        '/admin/settings',
+        expect.objectContaining({
+          method: 'PUT',
+          body: expect.objectContaining({
+            expected_revision: 4,
+            changes: {
+              app_promo_enabled: true,
+              app_promo_campaign_id: rotatedId,
+              app_promo_title: 'Share Beta Feedback!',
+              app_promo_body: 'Help us polish v0.4.',
+              app_promo_cta_label: 'Take Survey',
+              app_promo_url: 'https://forms.gle/abc123',
+              app_promo_until: '',
             },
           }),
         }),

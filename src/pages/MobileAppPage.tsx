@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Bell, Download, RefreshCw, Save, Smartphone } from 'lucide-react';
+import { Bell, Download, Megaphone, RefreshCw, Save, Smartphone } from 'lucide-react';
 import { apiFetch } from '../api/client';
 import { PageHeader } from '../components/PageState';
 import { PrintReport } from '../components/PrintReport';
@@ -46,13 +46,42 @@ interface MobileAppOverview {
     app_announcement_text: string;
     app_announcement_severity: 'info' | 'warning';
     app_announcement_until: string;
+    app_promo_enabled?: boolean;
+    app_promo_campaign_id?: string;
+    app_promo_title?: string;
+    app_promo_body?: string;
+    app_promo_cta_label?: string;
+    app_promo_url?: string;
+    app_promo_until?: string;
   };
+}
+
+function isValidHttpsUrl(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'https:' && parsed.host.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function buildCampaignId(previous: string): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}-${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`;
+  const candidate = `promo-${stamp}`;
+  if (candidate !== previous) return candidate;
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return `${candidate}-${suffix}`;
 }
 
 export function MobileAppPage() {
   const [data, setData] = useState<MobileAppOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingPromo, setSavingPromo] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -61,6 +90,15 @@ export function MobileAppPage() {
   const [bannerSeverity, setBannerSeverity] = useState<'info' | 'warning'>('info');
   const [bannerUntil, setBannerUntil] = useState('');
   const [reason, setReason] = useState('');
+
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoCampaignId, setPromoCampaignId] = useState('');
+  const [promoTitle, setPromoTitle] = useState('');
+  const [promoBody, setPromoBody] = useState('');
+  const [promoCtaLabel, setPromoCtaLabel] = useState('Open Form');
+  const [promoUrl, setPromoUrl] = useState('');
+  const [promoUntil, setPromoUntil] = useState('');
+  const [promoReason, setPromoReason] = useState('');
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -72,6 +110,13 @@ export function MobileAppPage() {
       setBannerText(res.settings.app_announcement_text ?? '');
       setBannerSeverity(res.settings.app_announcement_severity === 'warning' ? 'warning' : 'info');
       setBannerUntil(res.settings.app_announcement_until ?? '');
+      setPromoEnabled(Boolean(res.settings.app_promo_enabled));
+      setPromoCampaignId(res.settings.app_promo_campaign_id ?? '');
+      setPromoTitle(res.settings.app_promo_title ?? '');
+      setPromoBody(res.settings.app_promo_body ?? '');
+      setPromoCtaLabel(res.settings.app_promo_cta_label?.trim() || 'Open Form');
+      setPromoUrl(res.settings.app_promo_url ?? '');
+      setPromoUntil(res.settings.app_promo_until ?? '');
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
         setError(describeError(cause, 'Unable to load mobile app management telemetry.'));
@@ -93,6 +138,28 @@ export function MobileAppPage() {
     Number.isInteger(parsedMinBuild) &&
     parsedMinBuild >= 1 &&
     bannerText.trim().length <= 140;
+
+  const trimmedPromoUrl = promoUrl.trim();
+  const promoUrlInvalid = trimmedPromoUrl.length > 0 && !isValidHttpsUrl(trimmedPromoUrl);
+  const promoUntilMs = promoUntil.trim() ? Date.parse(promoUntil.trim()) : NaN;
+  const promoUntilInvalid = promoUntil.trim().length > 0 && !Number.isFinite(promoUntilMs);
+  const promoExpired = promoUntil.trim().length > 0 && Number.isFinite(promoUntilMs) && promoUntilMs <= Date.now();
+  const promoNeedsRequiredFields = promoEnabled && (promoTitle.trim().length === 0 || !isValidHttpsUrl(trimmedPromoUrl));
+  const validPromoForm =
+    data !== null &&
+    !promoUrlInvalid &&
+    !promoUntilInvalid &&
+    !promoNeedsRequiredFields &&
+    promoTitle.trim().length <= 80 &&
+    promoBody.trim().length <= 200 &&
+    promoCtaLabel.trim().length <= 28 &&
+    promoCampaignId.trim().length <= 64;
+
+  const promoPreviewStatus: 'LIVE' | 'DISABLED' | 'EXPIRED' = !promoEnabled
+    ? 'DISABLED'
+    : promoExpired
+      ? 'EXPIRED'
+      : 'LIVE';
 
   const saveControls = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -121,6 +188,39 @@ export function MobileAppPage() {
       setError(describeError(cause, 'Unable to update mobile app controls.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const savePromoPanel = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!data || !validPromoForm) return;
+    setSavingPromo(true);
+    setError('');
+    setNotice('');
+    try {
+      await apiFetch('/admin/settings', {
+        method: 'PUT',
+        body: {
+          expected_revision: data.settings.revision,
+          reason: promoReason.trim() || 'Mobile Home feedback & promo panel update',
+          changes: {
+            app_promo_enabled: promoEnabled,
+            app_promo_campaign_id: promoCampaignId.trim(),
+            app_promo_title: promoTitle.trim(),
+            app_promo_body: promoBody.trim(),
+            app_promo_cta_label: promoCtaLabel.trim() || 'Open Form',
+            app_promo_url: trimmedPromoUrl,
+            app_promo_until: promoUntil.trim(),
+          },
+        },
+      });
+      setPromoReason('');
+      setNotice('Home feedback & promotion panel saved and audited.');
+      await load();
+    } catch (cause) {
+      setError(describeError(cause, 'Unable to update Home feedback & promotion panel.'));
+    } finally {
+      setSavingPromo(false);
     }
   };
 
@@ -312,6 +412,148 @@ export function MobileAppPage() {
                 </button>
               </div>
             </form>
+          </section>
+
+          <section className="stitch-panel panel-section" aria-label="Home Feedback & Promotion Panel">
+            <h2 className="section-title"><Megaphone size={18} /> Home Feedback &amp; Promotion Panel</h2>
+            <p className="section-description">
+              Configures the highlighted card right below the Hero card on the mobile Home screen via <code>GET /api/v1/app/version</code> (<code>promo_panel</code>). Rotating the campaign ID re-shows the panel to travelers who dismissed a prior campaign.
+            </p>
+            <form onSubmit={(e) => void savePromoPanel(e)} className="settings-grid">
+              <div className="promo-field-span">
+                <label className="settings-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={promoEnabled}
+                    onChange={(e) => setPromoEnabled(e.target.checked)}
+                  />
+                  Show highlighted panel on Mobile Home
+                </label>
+              </div>
+
+              <div className="settings-field">
+                <label htmlFor="promo-campaign-id" className="settings-field">
+                  Campaign ID
+                </label>
+                <div className="promo-campaign-row">
+                  <input
+                    id="promo-campaign-id"
+                    value={promoCampaignId}
+                    maxLength={64}
+                    onChange={(e) => setPromoCampaignId(e.target.value)}
+                    placeholder="beta-feedback-2026-11"
+                  />
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => setPromoCampaignId((prev) => buildCampaignId(prev))}
+                  >
+                    New campaign ID
+                  </button>
+                </div>
+                <span className="promo-field-hint">Letters, numbers, dots, underscores, hyphens only.</span>
+              </div>
+
+              <label className="settings-field">
+                Button label ({promoCtaLabel.length}/28)
+                <input
+                  value={promoCtaLabel}
+                  maxLength={28}
+                  onChange={(e) => setPromoCtaLabel(e.target.value)}
+                  placeholder="Open Form"
+                />
+              </label>
+
+              <label className="settings-field promo-field-span">
+                Headline ({promoTitle.length}/80)
+                <input
+                  value={promoTitle}
+                  maxLength={80}
+                  onChange={(e) => setPromoTitle(e.target.value)}
+                  placeholder="Help Shape JuanDerQuest Beta!"
+                />
+              </label>
+
+              <label className="settings-field promo-field-span">
+                Description ({promoBody.length}/200)
+                <textarea
+                  value={promoBody}
+                  maxLength={200}
+                  rows={2}
+                  onChange={(e) => setPromoBody(e.target.value)}
+                  placeholder="Take our 2-minute traveler survey and tell us what to improve next."
+                />
+              </label>
+
+              <div className="settings-field">
+                <label className="settings-field">
+                  Form URL (HTTPS)
+                  <input
+                    value={promoUrl}
+                    maxLength={500}
+                    onChange={(e) => setPromoUrl(e.target.value)}
+                    placeholder="https://forms.gle/example123"
+                  />
+                </label>
+                {promoUrlInvalid ? (
+                  <span className="promo-field-error" role="alert">Form URL must start with https:// and include a valid host.</span>
+                ) : null}
+              </div>
+
+              <div className="settings-field">
+                <label className="settings-field">
+                  Auto-expire at (optional ISO timestamp)
+                  <input
+                    value={promoUntil}
+                    maxLength={40}
+                    onChange={(e) => setPromoUntil(e.target.value)}
+                    placeholder="2026-12-15T15:59:59Z"
+                  />
+                </label>
+                {promoUntilInvalid ? (
+                  <span className="promo-field-error" role="alert">Expiry must be a valid ISO-8601 timestamp.</span>
+                ) : null}
+              </div>
+
+              <label className="settings-field promo-field-span">
+                Promo audit note (optional)
+                <input
+                  value={promoReason}
+                  maxLength={500}
+                  onChange={(e) => setPromoReason(e.target.value)}
+                  placeholder="Reason for launching or updating the Home promo panel"
+                />
+              </label>
+
+              <div className="form-actions promo-field-span">
+                <button type="submit" className="button-approve" disabled={savingPromo || !validPromoForm}>
+                  {savingPromo ? 'Saving…' : 'Save promo panel'}
+                </button>
+              </div>
+            </form>
+
+            <div className="promo-preview-card" aria-label="Home promo live preview">
+              <div className="promo-preview-head">
+                <span className="row-badges">
+                  <span className="pill">FEEDBACK</span>
+                  <span
+                    className={`pill ${
+                      promoPreviewStatus === 'LIVE'
+                        ? 'pill-success'
+                        : promoPreviewStatus === 'EXPIRED'
+                          ? 'pill-danger'
+                          : 'pill-warn'
+                    }`}
+                  >
+                    {promoPreviewStatus}
+                  </span>
+                </span>
+                {promoCampaignId.trim() ? <span className="promo-field-hint">ID: {promoCampaignId.trim()}</span> : null}
+              </div>
+              <h3 className="promo-preview-title">{promoTitle.trim() || 'Promo headline preview'}</h3>
+              {promoBody.trim() ? <p className="promo-preview-body">{promoBody.trim()}</p> : null}
+              <span className="promo-preview-cta">{(promoCtaLabel.trim() || 'Open Form').toUpperCase()}</span>
+            </div>
           </section>
         </>
       )}
