@@ -40,6 +40,7 @@ export interface NavItem {
     /** Plan 92b: any administrator with at least one area grant (or platform staff). */
     anyGrant?: true;
     power?: 'destinations' | 'quests_quizzes' | 'merchants_vouchers' | 'analytics';
+    powers?: Array<'destinations' | 'quests_quizzes' | 'merchants_vouchers' | 'analytics'>;
   };
   /** Shown only to developers (admin_scope='developer'). */
   developerOnly?: boolean;
@@ -237,6 +238,14 @@ export const NAV_SECTIONS: NavSection[] = [
         requires: { power: 'merchants_vouchers' },
       },
       {
+        path: '/partners/merchant-claims',
+        label: 'Location claims',
+        icon: MapPin,
+        description: 'Review Local Partner claims linking merchant businesses to published spots.',
+        available: true,
+        requires: { powers: ['merchants_vouchers', 'destinations'] },
+      },
+      {
         path: '/partners/vouchers',
         label: 'Merchant vouchers',
         icon: Ticket,
@@ -394,11 +403,12 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const findNavItem = (path: string): NavItem | null => {
+  const normalizedPath = path === '/merchant-claims' ? '/partners/merchant-claims' : path;
   let prefixMatch: NavItem | null = null;
   for (const section of NAV_SECTIONS) {
     for (const item of section.items) {
-      if (item.path === path) return item;
-      if (item.path !== '/' && path.startsWith(`${item.path}/`)) {
+      if (item.path === normalizedPath) return item;
+      if (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`)) {
         if (!prefixMatch || item.path.length > prefixMatch.path.length) {
           prefixMatch = item;
         }
@@ -414,6 +424,9 @@ export const canOpenNavItem = (item: NavItem | null, scope: NavigationScope | nu
   if (item.requires?.platform) return scope.platform;
   if (item.requires?.anyGrant) return scope.platform || scope.grants.length > 0;
   if (scope.platform || !item.requires) return scope.platform;
+  if (item.requires.powers?.length) {
+    return scope.grants.some((grant) => item.requires!.powers!.some((power) => grant.powers.includes(power)));
+  }
   return Boolean(item.requires.power && scope.grants.some((grant) => grant.powers.includes(item.requires!.power!)));
 };
 

@@ -44,4 +44,13 @@ describe('area administrator navigation policy', () => {
     expect(findNavItem('/juanchoice/history')?.path).toBe('/juanchoice/history');
     expect(findNavItem('/shop/cosmetics/new')?.path).toBe('/shop/cosmetics');
   });
+
+  it('opens /partners/merchant-claims and /merchant-claims for destinations or merchants_vouchers grants', () => {
+    expect(canOpenNavItem(findNavItem('/partners/merchant-claims'), areaScope)).toBe(true);
+    expect(canOpenNavItem(findNavItem('/merchant-claims'), areaScope)).toBe(true);
+    const merchOnly = { platform: false, grants: [{ area_id: 'pangasinan', area_name: 'Pangasinan', powers: ['merchants_vouchers'] }] };
+    expect(canOpenNavItem(findNavItem('/partners/merchant-claims'), merchOnly)).toBe(true);
+    const analyticsOnly = { platform: false, grants: [{ area_id: 'pangasinan', area_name: 'Pangasinan', powers: ['analytics'] }] };
+    expect(canOpenNavItem(findNavItem('/partners/merchant-claims'), analyticsOnly)).toBe(false);
+  });
 });

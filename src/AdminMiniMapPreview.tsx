@@ -13,6 +13,8 @@ export interface AdminMiniMapPreviewProps {
   distanceMeters: number;
   capturedAccuracy?: number;
   status?: 'pending' | 'approved' | 'rejected';
+  spotOnly?: boolean;
+  badgeLabel?: string;
 }
 
 export function AdminMiniMapPreview({
@@ -25,6 +27,8 @@ export function AdminMiniMapPreview({
   radiusMeters,
   distanceMeters,
   capturedAccuracy,
+  spotOnly = false,
+  badgeLabel,
 }: AdminMiniMapPreviewProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -109,9 +113,10 @@ export function AdminMiniMapPreview({
         });
         L.marker([validTargetLat, validTargetLng], { icon: targetIcon }).addTo(map);
 
-        // Captured Scout Icon (Emerald Pulse or Warning Red)
-        const captureColor = isValidDistance ? '#2d6a4f' : '#bc4749';
-        const captureHtml = `
+        if (!spotOnly) {
+          // Captured Scout Icon (Emerald Pulse or Warning Red)
+          const captureColor = isValidDistance ? '#2d6a4f' : '#bc4749';
+          const captureHtml = `
           <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;">
             <div style="background:${captureColor};border:2px solid #ffffff;color:#ffffff;border-radius:9999px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.35);">
               <div style="width:6px;height:6px;border-radius:9999px;background:#ffffff;"></div>
@@ -119,34 +124,35 @@ export function AdminMiniMapPreview({
             <div style="background:${captureColor};color:#ffffff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;margin-top:2px;white-space:nowrap;">${userName}</div>
           </div>
         `;
-        const captureIcon = L.divIcon({
-          className: 'admin-map-pin',
-          html: captureHtml,
-          iconSize: [50, 42],
-          iconAnchor: [25, 20],
-        });
-        L.marker([validCapturedLat, validCapturedLng], { icon: captureIcon }).addTo(map);
+          const captureIcon = L.divIcon({
+            className: 'admin-map-pin',
+            html: captureHtml,
+            iconSize: [50, 42],
+            iconAnchor: [25, 20],
+          });
+          L.marker([validCapturedLat, validCapturedLng], { icon: captureIcon }).addTo(map);
 
-        // Connecting dotted line showing offset
-        L.polyline(
-          [
+          // Connecting dotted line showing offset
+          L.polyline(
+            [
+              [validTargetLat, validTargetLng],
+              [validCapturedLat, validCapturedLng],
+            ],
+            {
+              color: captureColor,
+              weight: 2,
+              dashArray: '3, 5',
+              opacity: 0.8,
+            }
+          ).addTo(map);
+
+          // Fit bounds to cover both points and geofence
+          const bounds = L.latLngBounds([
             [validTargetLat, validTargetLng],
             [validCapturedLat, validCapturedLng],
-          ],
-          {
-            color: captureColor,
-            weight: 2,
-            dashArray: '3, 5',
-            opacity: 0.8,
-          }
-        ).addTo(map);
-
-        // Fit bounds to cover both points and geofence
-        const bounds = L.latLngBounds([
-          [validTargetLat, validTargetLng],
-          [validCapturedLat, validCapturedLng],
-        ]);
-        map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 });
+          ]);
+          map.fitBounds(bounds, { padding: [35, 35], maxZoom: 16 });
+        }
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -171,7 +177,7 @@ export function AdminMiniMapPreview({
         mapInstanceRef.current = null;
       }
     };
-  }, [targetLat, targetLng, capturedLat, capturedLng, radiusMeters, distanceMeters, isJSDOM, userName, isValidDistance]);
+  }, [targetLat, targetLng, capturedLat, capturedLng, radiusMeters, distanceMeters, isJSDOM, userName, isValidDistance, spotOnly]);
 
   return (
     <div
@@ -215,7 +221,7 @@ export function AdminMiniMapPreview({
             <circle cx="140" cy="70" r="7" fill="#582f0e" stroke="#ffb703" strokeWidth="2" />
             <text x="140" y="90" fontSize="9" fontWeight="bold" fill="#582f0e" textAnchor="middle">Landmark</text>
             {/* Captured Scout Pin */}
-            {isValidDistance ? (
+            {!spotOnly && (isValidDistance ? (
               <>
                 <line x1="140" y1="70" x2="165" y2="55" stroke="#2d6a4f" strokeWidth="1.5" strokeDasharray="2 2" />
                 <circle cx="165" cy="55" r="5.5" fill="#2d6a4f" stroke="#ffffff" strokeWidth="1.5" />
@@ -227,7 +233,7 @@ export function AdminMiniMapPreview({
                 <circle cx="195" cy="40" r="5.5" fill="#bc4749" stroke="#ffffff" strokeWidth="1.5" />
                 <text x="195" y="30" fontSize="8.5" fontWeight="bold" fill="#bc4749" textAnchor="middle">{userName} (Out of Bounds)</text>
               </>
-            )}
+            ))}
           </svg>
         </div>
       )}
@@ -239,7 +245,7 @@ export function AdminMiniMapPreview({
           top: '8px',
           left: '8px',
           zIndex: 10,
-          background: isValidDistance ? '#2d6a4f' : '#bc4749',
+          background: spotOnly ? '#582f0e' : isValidDistance ? '#2d6a4f' : '#bc4749',
           color: '#ffffff',
           padding: '4px 8px',
           borderRadius: '8px',
@@ -252,8 +258,17 @@ export function AdminMiniMapPreview({
           pointerEvents: 'none',
         }}
       >
-        {isValidDistance ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
-        <span>{isValidDistance ? `Inside Geofence (${distanceMeters}m offset)` : `Out of Bounds (${distanceMeters}m / ${radiusMeters}m)`}</span>
+        {spotOnly ? (
+          <>
+            <MapPin size={13} />
+            <span>{badgeLabel || 'Target destination'}</span>
+          </>
+        ) : (
+          <>
+            {isValidDistance ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
+            <span>{isValidDistance ? `Inside Geofence (${distanceMeters}m offset)` : `Out of Bounds (${distanceMeters}m / ${radiusMeters}m)`}</span>
+          </>
+        )}
       </div>
 
       {/* Bottom Map Inspect Link */}

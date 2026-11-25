@@ -19,6 +19,7 @@ import { PlazaModerationPage } from './pages/PlazaModerationPage';
 import { AvatarReportsPage } from './pages/AvatarReportsPage';
 import { QuizzesPage } from './pages/QuizzesPage';
 import { MerchantsPage } from './pages/MerchantsPage';
+import { MerchantSpotClaimsPage } from './pages/MerchantSpotClaimsPage';
 import { VouchersPage } from './pages/VouchersPage';
 import { JuanChoicePage } from './pages/JuanChoicePage';
 import { JuanChoicePerksPage } from './pages/JuanChoicePerksPage';
@@ -127,6 +128,9 @@ function RouteOutlet() {
       return <AffiliatesPage />;
     case '/partners/merchants':
       return <MerchantsPage />;
+    case '/partners/merchant-claims':
+    case '/merchant-claims':
+      return <MerchantSpotClaimsPage />;
     case '/partners/vouchers':
       return <VouchersPage />;
     case '/partners/suki':

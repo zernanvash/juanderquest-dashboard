@@ -4,11 +4,13 @@ import { apiFetch } from '../api/client';
 import { useSelectedAreaId } from '../auth';
 import { withArea } from '../utils/areaQuery';
 import { PageHeader } from '../components/PageState';
+import { useRouter } from '../router';
 import { describeError } from '../utils/errors';
 import { useUrlFilterState } from '../utils/urlFilters';
 import type { AdminMerchantDetail, AdminMerchantListItem } from '../types';
 
 export function MerchantsPage() {
+  const { navigate } = useRouter();
   const selectedAreaId = useSelectedAreaId();
   const [merchants, setMerchants] = useState<AdminMerchantListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +70,24 @@ export function MerchantsPage() {
         title="Merchants"
         description="Directory and inspection of provisioned merchant workspaces. Owners keep publishing their profile and catalog in the traveler /merchant workspace."
       />
+
+      <div className="filter-row" role="navigation" aria-label="Partners views">
+        <button
+          type="button"
+          className="filter-chip is-active"
+          aria-current="page"
+          onClick={() => navigate('/partners/merchants')}
+        >
+          Merchants directory
+        </button>
+        <button
+          type="button"
+          className="filter-chip"
+          onClick={() => navigate('/partners/merchant-claims')}
+        >
+          Location claims
+        </button>
+      </div>
 
       <div className="readonly-banner" role="note">
         Staff suspend/hide/restore actions are deferred until a dedicated reasoned, audited API and ownership-visibility policy exist.

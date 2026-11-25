@@ -390,3 +390,34 @@ export interface PlazaReportGroup {
   activity: PlazaAdminActivity;
   reports: PlazaAdminReport[];
 }
+
+export type MerchantSpotClaimStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export interface AdminMerchantSpotClaim {
+  id: string;
+  merchant_id: string;
+  merchant_name: string;
+  merchant_category?: string | null;
+  requested_by: string;
+  owner_handle?: string | null;
+  owner_display_name?: string | null;
+  spot_id: string;
+  spot_name: string;
+  spot_slug?: string | null;
+  spot_municipality?: string | null;
+  spot_lat?: number | null;
+  spot_lng?: number | null;
+  spot_source_type?: string | null;
+  town_area_id?: string | null;
+  barangay_area_id?: string | null;
+  note?: string | null;
+  proof_url?: string | null;
+  status: MerchantSpotClaimStatus;
+  reviewed_by?: string | null;
+  reviewer_handle?: string | null;
+  reviewed_at?: string | null;
+  review_note?: string | null;
+  is_test?: boolean;
+  created_at: string;
+  updated_at?: string;
+}

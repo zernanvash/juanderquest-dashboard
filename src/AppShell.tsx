@@ -37,7 +37,41 @@ export function AppShell({ children }: { children: ReactNode }) {
   const activePowers = activeGrant?.powers || scope?.grants.flatMap((grant) => grant.powers) || [];
   const isDeveloper = profile?.role === 'admin' && profile?.admin_scope === 'developer';
   const canModerateDestinations = Boolean(scope?.platform || activePowers.includes('destinations'));
+  const canReviewMerchantClaims = Boolean(
+    scope?.platform || activePowers.includes('merchants_vouchers') || activePowers.includes('destinations'),
+  );
   const [pendingRelocations, setPendingRelocations] = useState(0);
+  const [pendingClaims, setPendingClaims] = useState(0);
+
+  useEffect(() => {
+    if (!canReviewMerchantClaims) {
+      setPendingClaims(0);
+      return;
+    }
+    let cancelled = false;
+    const fetchClaimsCount = async () => {
+      try {
+        const list = await apiFetch<Array<{ town_area_id?: string | null; barangay_area_id?: string | null }>>(
+          '/admin/merchant-spot-claims?status=pending',
+        );
+        if (!cancelled && Array.isArray(list)) {
+          const scoped = selectedAreaId
+            ? list.filter((row) => row.town_area_id === selectedAreaId || row.barangay_area_id === selectedAreaId)
+            : list;
+          setPendingClaims(scoped.length);
+        }
+      } catch {
+        // Non-blocking badge count
+      }
+    };
+    void fetchClaimsCount();
+    const onChanged = () => void fetchClaimsCount();
+    window.addEventListener('jdq:merchant-claims-changed', onChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('jdq:merchant-claims-changed', onChanged);
+    };
+  }, [canReviewMerchantClaims, selectedAreaId]);
 
   useEffect(() => {
     if (!canModerateDestinations) {
@@ -164,6 +198,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                                 aria-label={`${pendingRelocations} pending relocations`}
                               >
                                 {pendingRelocations}
+                              </span>
+                            ) : null}
+                            {pendingClaims > 0 && item.path === '/partners/merchant-claims' ? (
+                              <span
+                                className="nav-count-badge"
+                                style={{
+                                  marginLeft: 'auto',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 999,
+                                  background: '#c2410c',
+                                  color: '#fff',
+                                }}
+                                aria-label={`${pendingClaims} pending location claims`}
+                              >
+                                {pendingClaims}
                               </span>
                             ) : null}
                           </Link>
